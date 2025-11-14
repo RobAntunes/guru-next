@@ -333,10 +333,10 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden relative bottom-12">
+    <div className="flex flex-col h-full overflow-hidden relative top-12 px-6">
       {/* Header */}
       <div className='flex justify-between mb-4'>
-        <div className="flex justify-between flex-shrink-0">
+        <div className="flex justify-between shrink-0">
           <div className='flex items-start gap-2 flex-col'>
             {selectedKB && activeTab === 'resources' && (
               <button
@@ -360,8 +360,7 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
         {!selectedKB && activeTab === 'resources' && <Button
           onClick={() => setShowCreateKBDialog(true)}
           size="sm"
-          variant="default"
-          className="!text-xs !bg-neutral-900 !py-4 !text-white"
+          variant="outline"
         >
           <Plus className="h-3 w-3 mr-1" />
           New Knowledge Base
@@ -371,16 +370,16 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
       {/* Main Content */}
       {
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid w-full grid-cols-3 mb-4 flex-shrink-0 gap-1">
-            <TabsTrigger value="resources" className="data-[state=active]:!bg-background data-[state=inactive]:!bg-neutral-800">
+          <TabsList className="grid w-full grid-cols-3 mb-4 shrink-0 gap-1">
+            <TabsTrigger value="resources">
               <Database className="h-3 w-3 mr-1" />
               Resources
             </TabsTrigger>
-            <TabsTrigger value="specs" className="data-[state=active]:!bg-background data-[state=inactive]:!bg-neutral-800">
+            <TabsTrigger value="specs">
               <GitBranch className="h-3 w-3 mr-1" />
               Specifications
             </TabsTrigger>
-            <TabsTrigger value="prompts" className="data-[state=active]:!bg-background data-[state=inactive]:!bg-neutral-800">
+            <TabsTrigger value="prompts">
               <FileText className="h-3 w-3 mr-1" />
               Prompts
             </TabsTrigger>

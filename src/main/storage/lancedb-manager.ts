@@ -408,8 +408,11 @@ class LanceDBManager {
         .limit(20)
         .execute();
 
+      // Ensure results is an array before mapping
+      const resultsArray = Array.isArray(results) ? results : [];
+
       // Convert to plain objects for IPC serialization
-      return results.map((r: any) => ({
+      return resultsArray.map((r: any) => ({
         id: r.id,
         insight_text: r.insight_text,
         category: r.category,

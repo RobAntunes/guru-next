@@ -5,27 +5,27 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-300 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all duration-400 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
   {
     variants: {
       variant: {
         default:
-          "bg-gradient-to-br from-primary via-accent to-primary text-primary-foreground shadow-luxury hover:shadow-luxury-lg hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden before:absolute before:inset-0 before:bg-white/10 before:opacity-0 hover:before:opacity-100 before:transition-opacity",
+          "bg-cosmic-gradient text-background shadow-cosmic hover:shadow-cosmic-lg hover:scale-[1.03] active:scale-[0.97] relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-tr before:from-white/20 before:via-transparent before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity tracking-wide",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-luxury hover:bg-destructive/90 hover:shadow-luxury-lg hover:scale-[1.02] active:scale-[0.98]",
+          "bg-gradient-to-br from-destructive to-destructive/80 text-white shadow-cosmic hover:shadow-cosmic-lg hover:scale-[1.03] active:scale-[0.97]",
         outline:
-          "border border-border/50 bg-card/30 backdrop-blur-sm shadow-luxury hover:bg-card/50 hover:border-primary/30 hover:shadow-luxury-lg hover:text-foreground transition-all",
+          "border-2 border-foreground/20 glass-vibrant shadow-cosmic hover:border-foreground/40 hover:shadow-cosmic-lg hover:bg-card/70 hover:text-foreground neon-glow transition-all",
         secondary:
-          "bg-secondary/80 backdrop-blur-sm text-secondary-foreground shadow-luxury hover:bg-secondary hover:shadow-luxury-lg hover:scale-[1.02] active:scale-[0.98]",
+          "glass-vibrant text-foreground shadow-cosmic hover:shadow-cosmic-lg hover:scale-[1.03] active:scale-[0.97] border border-border/50",
         ghost:
-          "hover:bg-muted/50 hover:text-foreground transition-colors",
-        link: "text-primary underline-offset-4 hover:underline hover:text-accent transition-colors",
+          "hover:glass-vibrant hover:text-foreground transition-all hover:shadow-cosmic",
+        link: "text-primary underline-offset-4 hover:underline hover:text-accent transition-colors font-medium",
       },
       size: {
-        default: "h-10 px-5 py-2 has-[>svg]:px-4",
-        sm: "h-8 rounded-lg gap-1.5 px-3 has-[>svg]:px-2.5 text-xs",
-        lg: "h-12 rounded-lg px-8 has-[>svg]:px-6 text-base",
-        icon: "size-10 rounded-lg",
+        default: "h-11 px-6 py-2 has-[>svg]:px-5",
+        sm: "h-9 rounded-xl gap-1.5 px-4 has-[>svg]:px-3 text-xs",
+        lg: "h-14 rounded-2xl px-10 has-[>svg]:px-8 text-base",
+        icon: "size-11 rounded-xl",
       },
     },
     defaultVariants: {

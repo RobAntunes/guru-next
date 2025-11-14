@@ -108,7 +108,7 @@ export const CognitiveInsightsPanel: React.FC<CognitiveInsightsPanelProps> = ({
   return (
     <div className="h-full flex flex-col space-y-3 overflow-y-auto p-3">
       {/* Knowledge Base Stats */}
-      <Card className="flex-shrink-0">
+      <Card className="shrink-0">
         <CardHeader 
           className="cursor-pointer flex flex-row items-center justify-between p-3"
           onClick={() => toggleSection('stats')}
@@ -180,7 +180,7 @@ export const CognitiveInsightsPanel: React.FC<CognitiveInsightsPanelProps> = ({
       {expandedSections.has('graph') ? (
         <Card className="flex-1 min-h-[300px] flex flex-col">
           <CardHeader 
-            className="cursor-pointer flex flex-row items-center justify-between flex-shrink-0 p-3"
+            className="cursor-pointer flex flex-row items-center justify-between shrink-0 p-3"
             onClick={() => toggleSection('graph')}
           >
             <div className="flex items-center space-x-2">
@@ -200,7 +200,7 @@ export const CognitiveInsightsPanel: React.FC<CognitiveInsightsPanelProps> = ({
           </CardContent>
         </Card>
       ) : (
-        <Card className="flex-shrink-0">
+        <Card className="shrink-0">
           <CardHeader 
             className="cursor-pointer flex flex-row items-center justify-between p-3"
             onClick={() => toggleSection('graph')}
@@ -215,7 +215,7 @@ export const CognitiveInsightsPanel: React.FC<CognitiveInsightsPanelProps> = ({
       )}
 
       {/* Quick Info */}
-      <Card className="flex-shrink-0">
+      <Card className="shrink-0">
         <CardHeader className="p-3">
           <CardTitle className="text-sm">Context Summary</CardTitle>
         </CardHeader>

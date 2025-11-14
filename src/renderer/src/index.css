@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,300&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
 
 @layer base {
   :root {
@@ -26,43 +26,43 @@
   }
 
   .dark {
-    /* Deep charcoal with warm undertones */
-    --background: 240 8% 6%;
-    --foreground: 40 15% 96%;
+    /* Pure grayscale - off-black background */
+    --background: 0 0% 10%;
+    --foreground: 0 0% 98%;
 
-    /* Elevated surfaces with warmth */
-    --card: 240 7% 9%;
-    --card-foreground: 40 15% 96%;
+    /* Elevated surfaces with subtle lift */
+    --card: 0 0% 14%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 240 7% 8%;
-    --popover-foreground: 40 15% 96%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 98%;
 
-    /* Warm amber accent - the signature color */
-    --primary: 38 92% 58%;
-    --primary-foreground: 240 8% 6%;
+    /* Pure white primary */
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 10%;
 
-    /* Secondary surfaces with subtle lift */
-    --secondary: 240 6% 12%;
-    --secondary-foreground: 40 15% 96%;
+    /* Mid-gray secondary */
+    --secondary: 0 0% 20%;
+    --secondary-foreground: 0 0% 98%;
 
-    /* Muted elements with warm gray */
-    --muted: 240 5% 14%;
-    --muted-foreground: 30 8% 55%;
+    /* Muted grays */
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 65%;
 
-    /* Accent with amber glow */
-    --accent: 38 82% 48%;
-    --accent-foreground: 240 8% 6%;
+    /* Light gray accent */
+    --accent: 0 0% 25%;
+    --accent-foreground: 0 0% 98%;
 
-    /* Refined destructive */
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 40 15% 96%;
+    /* Red for errors (only colored element) */
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 98%;
 
     /* Subtle borders */
-    --border: 240 6% 16%;
-    --input: 240 6% 15%;
+    --border: 0 0% 22%;
+    --input: 0 0% 20%;
 
-    /* Amber focus ring */
-    --ring: 38 92% 58%;
+    /* White focus ring */
+    --ring: 0 0% 98%;
   }
 }
 
@@ -74,116 +74,158 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     font-weight: 400;
-    letter-spacing: -0.011em;
+    letter-spacing: -0.01em;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    position: relative;
   }
 
-  /* Noise texture overlay */
+  /* Subtle grayscale gradient mesh background */
   body::before {
     content: '';
     position: fixed;
     inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+    background:
+      radial-gradient(circle at 20% 50%, hsl(0 0% 18% / 0.4) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, hsl(0 0% 15% / 0.3) 0%, transparent 50%),
+      radial-gradient(circle at 40% 80%, hsl(0 0% 20% / 0.3) 0%, transparent 50%);
+    animation: meshFloat 20s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Grain texture overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.025'/%3E%3C/svg%3E");
     pointer-events: none;
     z-index: 9999;
     mix-blend-mode: overlay;
   }
 
+  @keyframes meshFloat {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+    }
+    33% {
+      transform: translate(30px, -30px) scale(1.05);
+    }
+    66% {
+      transform: translate(-20px, 20px) scale(0.95);
+    }
+  }
+
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Fraunces', Georgia, serif;
-    font-optical-sizing: auto;
-    letter-spacing: -0.03em;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.04em;
   }
 }
 
 @layer utilities {
-  /* Ambient glow effect */
-  .glow-ambient {
-    position: relative;
-  }
-
-  .glow-ambient::before {
-    content: '';
-    position: absolute;
-    inset: -100px;
-    background: radial-gradient(
-      circle at 30% 20%,
-      hsl(var(--primary) / 0.08) 0%,
-      transparent 50%
-    );
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  /* Premium shadows */
-  .shadow-luxury {
+  /* Refined monochrome shadows */
+  .shadow-cosmic {
     box-shadow:
-      0 2px 8px rgba(0, 0, 0, 0.4),
-      0 0 1px rgba(0, 0, 0, 0.5),
-      inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  }
-
-  .shadow-luxury-lg {
-    box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.5),
-      0 0 1px rgba(0, 0, 0, 0.6),
+      0 4px 16px rgba(0, 0, 0, 0.5),
+      0 0 32px rgba(255, 255, 255, 0.03),
       inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
-  /* Refined glass effect */
-  .glass-refined {
-    background: linear-gradient(
-      135deg,
-      hsl(var(--card) / 0.6) 0%,
-      hsl(var(--card) / 0.4) 100%
-    );
-    backdrop-filter: blur(20px) saturate(150%);
-    border: 1px solid hsl(var(--border) / 0.5);
-  }
-
-  /* Amber glow on hover */
-  .hover-glow {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .hover-glow:hover {
+  .shadow-cosmic-lg {
     box-shadow:
-      0 0 20px hsl(var(--primary) / 0.3),
-      0 0 40px hsl(var(--primary) / 0.15),
-      inset 0 1px 0 hsl(var(--primary) / 0.1);
-    border-color: hsl(var(--primary) / 0.5);
+      0 12px 48px rgba(0, 0, 0, 0.7),
+      0 0 64px rgba(255, 255, 255, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
-  /* Elegant text gradient */
-  .text-gradient {
+  /* Glass morphism grayscale */
+  .glass-vibrant {
     background: linear-gradient(
       135deg,
-      hsl(var(--foreground)) 0%,
-      hsl(var(--muted-foreground)) 100%
+      hsl(var(--card) / 0.7) 0%,
+      hsl(var(--card) / 0.5) 100%
     );
+    backdrop-filter: blur(24px) saturate(120%);
+    border: 1px solid hsl(var(--border) / 0.6);
+  }
+
+  /* Subtle glow effect */
+  .neon-glow {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .neon-glow:hover {
+    box-shadow:
+      0 0 30px rgba(255, 255, 255, 0.08),
+      0 0 60px rgba(255, 255, 255, 0.04),
+      inset 0 0 20px rgba(255, 255, 255, 0.03);
+    border-color: hsl(var(--primary) / 0.3);
+    transform: translateY(-2px);
+  }
+
+  /* Monochrome gradient text */
+  .text-gradient-vibrant {
+    background: linear-gradient(
+      120deg,
+      hsl(0 0% 98%) 0%,
+      hsl(0 0% 80%) 50%,
+      hsl(0 0% 98%) 100%
+    );
+    background-size: 200% 200%;
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
+    animation: gradientShift 8s ease infinite;
   }
 
-  /* Accent gradient */
-  .accent-gradient {
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  /* Grayscale gradient backgrounds */
+  .bg-twilight-gradient {
     background: linear-gradient(
       135deg,
-      hsl(var(--primary)) 0%,
-      hsl(var(--accent)) 100%
+      hsl(0 0% 16% / 0.5) 0%,
+      hsl(0 0% 18% / 0.3) 50%,
+      hsl(0 0% 20% / 0.4) 100%
     );
   }
 
-  /* Smooth fade-in animation */
+  .bg-cosmic-gradient {
+    background: linear-gradient(
+      135deg,
+      hsl(0 0% 98%) 0%,
+      hsl(0 0% 90%) 50%,
+      hsl(0 0% 98%) 100%
+    );
+  }
+
+  /* Geometric pattern overlay */
+  .pattern-dots {
+    background-image:
+      radial-gradient(circle, hsl(0 0% 100% / 0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .pattern-grid {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.3) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.3) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  /* Smooth animations */
   @keyframes fadeInUp {
     from {
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(20px);
     }
     to {
       opacity: 1;
@@ -191,12 +233,44 @@
     }
   }
 
-  .animate-fade-in {
-    animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(-30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
 
-  /* Stagger delays for multiple elements */
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeInUp 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  .animate-slide-in {
+    animation: slideInRight 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  /* Stagger delays */
+  .delay-75 { animation-delay: 0.075s; }
   .delay-100 { animation-delay: 0.1s; }
+  .delay-150 { animation-delay: 0.15s; }
   .delay-200 { animation-delay: 0.2s; }
   .delay-300 { animation-delay: 0.3s; }
   .delay-400 { animation-delay: 0.4s; }

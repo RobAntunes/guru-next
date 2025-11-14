@@ -76,24 +76,25 @@ function App() {
 
   return (
     <div className="app dark h-screen bg-background text-foreground relative overflow-hidden">
-      {/* Ambient atmospheric gradients */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '8s' }} />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-accent/8 rounded-full blur-[140px] animate-pulse" style={{ animationDuration: '10s', animationDelay: '2s' }} />
-        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-background/50 to-card/30" />
-      </div>
+      {/* Cosmic background with geometric patterns */}
+      <div className="absolute inset-0 pattern-dots opacity-30" />
 
       <div className="h-full flex relative z-10">
-        {/* Refined Sidebar Navigation */}
-        <aside className="w-20 border-r border-border/50 bg-card/40 backdrop-blur-xl flex flex-col items-center py-8 gap-6 shadow-luxury">
-          <div className="mb-4 relative group">
-            <div className="absolute -inset-3 bg-primary/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-primary via-accent to-primary/80 flex items-center justify-center text-xs font-bold text-primary-foreground shadow-luxury">
-              G
+        {/* Refined Sidebar */}
+        <aside className="w-24 border-r border-border/60 glass-vibrant flex flex-col items-center py-8 gap-8 shadow-cosmic-lg relative overflow-hidden">
+          {/* Subtle accent border */}
+          <div className="absolute left-0 inset-y-0 w-[2px] bg-cosmic-gradient opacity-50" />
+
+          {/* Logo with refined shadow */}
+          <div className="mb-2 relative group animate-scale-in">
+            <div className="absolute -inset-4 bg-white/5 rounded-2xl blur-2xl opacity-0 group-hover:opacity-100 transition-all duration-700" />
+            <div className="relative w-14 h-14 rounded-2xl bg-muted border-2 border-foreground/20 flex items-center justify-center text-lg font-bold shadow-cosmic-lg transform group-hover:scale-110 group-hover:border-foreground/30 transition-all duration-500">
+              <span className="text-foreground">G</span>
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col gap-3">
+          {/* Navigation buttons */}
+          <div className="flex-1 flex flex-col gap-4">
             <NavButton
               icon={Home}
               isActive={currentView === 'dashboard'}
@@ -119,26 +120,41 @@ function App() {
               label="Symbols"
             />
           </div>
+
+          {/* Subtle decorative element at bottom */}
+          <div className="w-16 h-16 rounded-full bg-white/5 blur-xl animate-pulse" style={{ animationDuration: '6s' }} />
         </aside>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col relative">
           {/* Refined Header */}
-          <header className="border-b border-border/50 px-8 py-6 bg-card/20 backdrop-blur-sm relative animate-fade-in">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent" />
-            <div className="relative">
-              <h1 className="text-3xl font-light tracking-tight text-gradient" style={{ fontVariationSettings: '"opsz" 144, "wght" 300' }}>
-                Guru
-              </h1>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-1 font-medium">
-                Context Engineering for AI
-              </p>
+          <header className="border-b border-border/60 px-10 py-8 glass-vibrant relative overflow-hidden animate-fade-in">
+            {/* Subtle gradient background */}
+            <div className="absolute inset-0 bg-twilight-gradient opacity-40" />
+            <div className="absolute inset-0 bg-gradient-to-r from-white/5 via-transparent to-white/5" />
+
+            {/* Content */}
+            <div className="relative z-10 flex items-center justify-between">
+              <div>
+                <h1 className="text-5xl font-bold tracking-tight text-gradient-vibrant mb-2">
+                  Guru
+                </h1>
+                <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground font-semibold">
+                  Context Engineering for AI
+                </p>
+              </div>
+
+              {/* Status indicator */}
+              <div className="flex items-center gap-3 px-4 py-2 rounded-full glass-vibrant shadow-cosmic">
+                <div className="w-2 h-2 rounded-full bg-foreground animate-pulse" />
+                <span className="text-xs font-medium text-muted-foreground">Online</span>
+              </div>
             </div>
           </header>
 
-          {/* Main View */}
+          {/* Main View with pattern */}
           <main className="flex-1 overflow-hidden relative">
-            <div className="h-full animate-fade-in delay-100">
+            <div className="h-full animate-fade-in delay-150">
               {renderView()}
             </div>
           </main>
@@ -162,24 +178,29 @@ function NavButton({ icon: Icon, isActive, onClick, label }: NavButtonProps) {
       onClick={onClick}
       title={label}
       className={`
-        group relative w-12 h-12 rounded-xl
+        group relative w-14 h-14 rounded-2xl
         flex items-center justify-center
-        transition-all duration-300 ease-out
+        transition-all duration-400 ease-out
         ${isActive
-          ? 'bg-primary text-primary-foreground shadow-luxury'
-          : 'bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+          ? 'bg-muted/40 border-2 border-foreground/30 shadow-cosmic-lg'
+          : 'bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground shadow-cosmic border-2 border-transparent'
         }
       `}
     >
       {isActive && (
         <>
-          <div className="absolute -inset-1 bg-primary/30 rounded-xl blur-md" />
-          <div className="absolute inset-0 bg-gradient-to-br from-primary to-accent rounded-xl opacity-90" />
+          {/* Refined subtle glow */}
+          <div className="absolute -inset-2 bg-white/5 rounded-2xl blur-xl opacity-60" />
+          {/* Shimmer overlay */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent rounded-2xl" />
         </>
       )}
       <Icon className={`
-        relative z-10 transition-transform duration-300
-        ${isActive ? 'h-5 w-5 scale-110' : 'h-5 w-5 group-hover:scale-110'}
+        relative z-10 transition-all duration-400
+        ${isActive
+          ? 'h-6 w-6 scale-110 text-foreground'
+          : 'h-5 w-5 group-hover:scale-110 group-hover:text-foreground'
+        }
       `} />
     </button>
   )
