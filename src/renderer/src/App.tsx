@@ -3,9 +3,16 @@ import { KnowledgeHub } from './components/KnowledgeHub'
 import { Dashboard } from './components/Dashboard'
 import { MemoryPanel } from './components/MemoryPanel'
 import { SymbolGraph } from './components/SymbolGraph'
+import { ProjectManagement } from './components/ProjectManagement'
+import { Settings } from './components/Settings'
 import { Button } from './components/ui/button'
-import { Home, Database, Brain, Code } from 'lucide-react'
+import { Home, Database, Brain, Code, Settings as SettingsIcon, FolderKanban, ChevronDown, Plus, Check, Sun, Moon } from 'lucide-react'
 import { analytics } from './services/analytics'
+import { projectStorage, Project } from './services/project-storage'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './components/ui/dropdown-menu'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './components/ui/dialog'
+import { Input } from './components/ui/input'
+import { Label } from './components/ui/label'
 
 interface KnowledgeBase {
   id: string;
@@ -16,13 +23,78 @@ interface KnowledgeBase {
   lastUpdated: Date;
 }
 
-type ViewType = 'dashboard' | 'knowledge' | 'specs' | 'prompts' | 'memory' | 'symbols'
+type ViewType = 'dashboard' | 'knowledge' | 'specs' | 'prompts' | 'memory' | 'symbols' | 'projects' | 'settings'
 
 function App() {
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [currentView, setCurrentView] = useState<ViewType>('dashboard')
   const [sessionStartTime] = useState(Date.now())
+  const [serverActive, setServerActive] = useState(true)
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
+    // Initialize theme from localStorage or default to 'dark'
+    try {
+      const saved = localStorage.getItem('app-settings')
+      if (saved) {
+        const settings = JSON.parse(saved)
+        return settings.theme || 'dark'
+      }
+    } catch (error) {
+      console.error('Failed to load initial theme:', error)
+    }
+    return 'dark'
+  })
+
+  // Theme management
+  useEffect(() => {
+    // Load theme from settings
+    const loadTheme = () => {
+      try {
+        const saved = localStorage.getItem('app-settings')
+        if (saved) {
+          const settings = JSON.parse(saved)
+          setTheme(settings.theme || 'dark')
+        }
+      } catch (error) {
+        console.error('Failed to load theme:', error)
+      }
+    }
+    loadTheme()
+
+    // Listen for settings changes
+    const handleStorageChange = () => {
+      loadTheme()
+    }
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
+
+  // System theme detection and application
+  useEffect(() => {
+    const applyTheme = (themeMode: 'light' | 'dark' | 'system') => {
+      const root = document.documentElement
+
+      if (themeMode === 'system') {
+        // Detect system preference
+        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        root.classList.toggle('dark', isDark)
+      } else {
+        root.classList.toggle('dark', themeMode === 'dark')
+      }
+    }
+
+    applyTheme(theme)
+
+    // Listen for system theme changes when in system mode
+    if (theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+      const handler = (e: MediaQueryListEvent) => {
+        document.documentElement.classList.toggle('dark', e.matches)
+      }
+      mediaQuery.addEventListener('change', handler)
+      return () => mediaQuery.removeEventListener('change', handler)
+    }
+  }, [theme])
 
   useEffect(() => {
     // Initialize analytics
@@ -69,13 +141,17 @@ function App() {
         return <MemoryPanel />
       case 'symbols':
         return <SymbolGraph />
+      case 'projects':
+        return <ProjectManagement />
+      case 'settings':
+        return <Settings />
       default:
         return null
     }
   }
 
   return (
-    <div className="app dark h-screen bg-background text-foreground relative overflow-hidden">
+    <div className="app h-screen bg-background text-foreground relative overflow-hidden">
       {/* Cosmic background with geometric patterns */}
       <div className="absolute inset-0 pattern-dots opacity-30" />
 
@@ -87,11 +163,24 @@ function App() {
 
           {/* Logo with refined shadow */}
           <div className="mb-2 relative group animate-scale-in">
-            <div className="absolute -inset-4 bg-white/5 rounded-2xl blur-2xl opacity-0 group-hover:opacity-100 transition-all duration-700" />
-            <div className="relative w-14 h-14 rounded-2xl bg-muted border-2 border-foreground/20 flex items-center justify-center text-lg font-bold shadow-cosmic-lg transform group-hover:scale-110 group-hover:border-foreground/30 transition-all duration-500">
-              <span className="text-foreground">G</span>
+            <div className="absolute -inset-4 bg-white/10 rounded-2xl blur-2xl opacity-0 group-hover:opacity-100 transition-all duration-700 animate-glow-pulse" />
+            <div className="relative w-14 h-14 rounded-2xl bg-muted border-2 border-foreground/20 flex items-center justify-center text-lg font-bold shadow-cosmic-lg transform group-hover:scale-110 group-hover:border-foreground/40 group-hover:rotate-6 transition-all duration-500 cursor-pointer">
+              <span className="text-foreground group-hover:scale-110 transition-transform duration-300">G</span>
             </div>
           </div>
+
+          {/* Project Switcher */}
+          <button
+            className="w-14 h-14 rounded-2xl bg-muted/30 border-2 border-foreground/10 flex flex-col items-center justify-center shadow-cosmic hover:scale-110 hover:border-foreground/20 hover:-translate-y-1 hover:shadow-cosmic-lg transition-all duration-500 group relative overflow-hidden animate-fade-in delay-100"
+            title="Project Management"
+            onClick={() => handleNavigate('projects')}
+          >
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <FolderKanban className="h-5 w-5 text-muted-foreground group-hover:text-foreground group-hover:scale-110 transition-all duration-300 relative z-10" />
+            <ChevronDown className="h-3 w-3 text-muted-foreground/60 group-hover:text-foreground/80 group-hover:translate-y-0.5 transition-all duration-300 relative z-10 -mt-1" />
+          </button>
+
+          <div className="w-12 h-px bg-border/30 my-2" />
 
           {/* Navigation buttons */}
           <div className="flex-1 flex flex-col gap-4">
@@ -121,8 +210,17 @@ function App() {
             />
           </div>
 
-          {/* Subtle decorative element at bottom */}
-          <div className="w-16 h-16 rounded-full bg-white/5 blur-xl animate-pulse" style={{ animationDuration: '6s' }} />
+          <div className="w-12 h-px bg-border/30 my-2" />
+
+          {/* Settings Button */}
+          <button
+            className="w-14 h-14 rounded-2xl bg-muted/30 border-2 border-foreground/10 flex items-center justify-center shadow-cosmic hover:scale-110 hover:border-foreground/20 hover:-translate-y-1 hover:shadow-cosmic-lg hover:rotate-90 transition-all duration-500 group relative overflow-hidden animate-fade-in delay-400"
+            title="Settings"
+            onClick={() => handleNavigate('settings')}
+          >
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <SettingsIcon className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-all duration-300 relative z-10" />
+          </button>
         </aside>
 
         {/* Main Content */}
@@ -130,24 +228,66 @@ function App() {
           {/* Refined Header */}
           <header className="border-b border-border/60 px-10 py-8 glass-vibrant relative overflow-hidden animate-fade-in">
             {/* Subtle gradient background */}
-            <div className="absolute inset-0 bg-twilight-gradient opacity-40" />
+            <div className="absolute inset-0 bg-twilight-gradient opacity-40 shimmer" />
             <div className="absolute inset-0 bg-gradient-to-r from-white/5 via-transparent to-white/5" />
 
             {/* Content */}
             <div className="relative z-10 flex items-center justify-between">
-              <div>
-                <h1 className="text-5xl font-bold tracking-tight text-gradient-vibrant mb-2">
+              <div className="animate-slide-in">
+                <h1 className="text-5xl font-bold tracking-tight text-gradient-vibrant mb-2 animate-bounce-hover">
                   Guru
                 </h1>
-                <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground font-semibold">
+                <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground font-semibold animate-fade-in delay-100">
                   Context Engineering for AI
                 </p>
               </div>
 
-              {/* Status indicator */}
-              <div className="flex items-center gap-3 px-4 py-2 rounded-full glass-vibrant shadow-cosmic">
-                <div className="w-2 h-2 rounded-full bg-foreground animate-pulse" />
-                <span className="text-xs font-medium text-muted-foreground">Online</span>
+              <div className="flex items-center gap-3">
+                {/* Theme switcher button */}
+                <button
+                  onClick={() => {
+                    const newTheme = theme === 'dark' ? 'light' : 'dark'
+                    setTheme(newTheme)
+
+                    // Save to localStorage
+                    try {
+                      const saved = localStorage.getItem('app-settings')
+                      const settings = saved ? JSON.parse(saved) : {}
+                      settings.theme = newTheme
+                      localStorage.setItem('app-settings', JSON.stringify(settings))
+                    } catch (error) {
+                      console.error('Failed to save theme:', error)
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-full glass-vibrant shadow-cosmic animate-fade-in delay-150 hover:scale-105 hover:shadow-cosmic-lg transition-all duration-300 cursor-pointer group border-2 border-transparent hover:border-foreground/20"
+                  title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+                >
+                  {theme === 'dark' ? (
+                    <Sun className="h-4 w-4 text-foreground group-hover:rotate-180 transition-transform duration-500" />
+                  ) : (
+                    <Moon className="h-4 w-4 text-foreground group-hover:-rotate-12 transition-transform duration-500" />
+                  )}
+                </button>
+
+                {/* Server status button */}
+                <button
+                  onClick={() => setServerActive(!serverActive)}
+                  className="flex items-center gap-3 px-5 py-2.5 rounded-full glass-vibrant shadow-cosmic animate-fade-in delay-200 hover:scale-105 hover:shadow-cosmic-lg transition-all duration-300 cursor-pointer group border-2 border-transparent hover:border-foreground/20"
+                >
+                  <div className="relative">
+                    {/* Pulsing ring */}
+                    <div className={`absolute -inset-1 rounded-full blur-sm animate-pulse ${
+                      serverActive ? 'bg-green-500/50' : 'bg-red-500/50'
+                    }`} style={{ animationDuration: '2s' }} />
+                    {/* Core dot */}
+                    <div className={`relative w-2 h-2 rounded-full ${
+                      serverActive ? 'bg-green-500' : 'bg-red-500'
+                    } shadow-[0_0_8px_currentColor]`} />
+                  </div>
+                  <span className="text-xs font-semibold text-foreground group-hover:text-foreground/80 transition-colors">
+                    {serverActive ? 'Server Active' : 'Server Offline'}
+                  </span>
+                </button>
               </div>
             </div>
           </header>
@@ -180,26 +320,26 @@ function NavButton({ icon: Icon, isActive, onClick, label }: NavButtonProps) {
       className={`
         group relative w-14 h-14 rounded-2xl
         flex items-center justify-center
-        transition-all duration-400 ease-out
+        transition-all duration-500 ease-out
         ${isActive
-          ? 'bg-muted/40 border-2 border-foreground/30 shadow-cosmic-lg'
-          : 'bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground shadow-cosmic border-2 border-transparent'
+          ? 'bg-muted/40 border-2 border-foreground/30 shadow-cosmic-lg scale-105'
+          : 'bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground hover:scale-110 hover:-translate-y-1 shadow-cosmic border-2 border-transparent hover:border-foreground/20'
         }
       `}
     >
       {isActive && (
         <>
           {/* Refined subtle glow */}
-          <div className="absolute -inset-2 bg-white/5 rounded-2xl blur-xl opacity-60" />
+          <div className="absolute -inset-2 bg-white/8 rounded-2xl blur-xl opacity-60 animate-glow-pulse" />
           {/* Shimmer overlay */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent rounded-2xl" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent rounded-2xl shimmer" />
         </>
       )}
       <Icon className={`
         relative z-10 transition-all duration-400
         ${isActive
-          ? 'h-6 w-6 scale-110 text-foreground'
-          : 'h-5 w-5 group-hover:scale-110 group-hover:text-foreground'
+          ? 'h-6 w-6 scale-110 text-foreground drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]'
+          : 'h-5 w-5 group-hover:scale-125 group-hover:rotate-12 group-hover:text-foreground'
         }
       `} />
     </button>

@@ -325,7 +325,7 @@ export function Dashboard({ onNavigate, knowledgeBases }: DashboardProps) {
                   <strong>3. Build Prompts</strong> - Create reusable templates for AI interactions
                 </p>
               </div>
-              <Button onClick={() => handleNavigate('knowledge')}>
+              <Button onClick={() => handleNavigate('knowledge')} variant="outline">
                 Get Started
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>

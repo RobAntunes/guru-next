@@ -10,7 +10,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-cosmic-gradient text-background shadow-cosmic hover:shadow-cosmic-lg hover:scale-[1.03] active:scale-[0.97] relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-tr before:from-white/20 before:via-transparent before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity tracking-wide",
+          "bg-cosmic-gradient text-background shadow-cosmic hover:shadow-cosmic-lg hover:scale-[1.05] active:scale-[0.95] relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-tr before:from-white/30 before:via-transparent before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-all before:duration-500 tracking-wide group",
         destructive:
           "bg-gradient-to-br from-destructive to-destructive/80 text-white shadow-cosmic hover:shadow-cosmic-lg hover:scale-[1.03] active:scale-[0.97]",
         outline:

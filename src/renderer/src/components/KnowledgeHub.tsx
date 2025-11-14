@@ -315,17 +315,83 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
 
   const selectedKBData = knowledgeBases.find(kb => kb.id === selectedKB);
 
+  const handleCreateProject = async () => {
+    try {
+      const project = await projectStorage.createProject(
+        'New Project',
+        'A workspace for your knowledge management'
+      );
+      await projectStorage.setCurrentProject(project.id);
+      setCurrentProject(project);
+      // Trigger reload
+      window.dispatchEvent(new Event('project-switched'));
+    } catch (error) {
+      console.error('Failed to create project:', error);
+    }
+  };
+
+  const handleOpenProject = async () => {
+    try {
+      const projects = await projectStorage.getAllProjects();
+      if (projects.length > 0) {
+        await projectStorage.setCurrentProject(projects[0].id);
+        setCurrentProject(projects[0]);
+        window.dispatchEvent(new Event('project-switched'));
+      }
+    } catch (error) {
+      console.error('Failed to open project:', error);
+    }
+  };
+
   // Check if we have a project
   if (!currentProject) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="p-8 text-center">
-            <FolderOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-medium mb-2">No Project Selected</h3>
-            <p className="text-sm text-muted-foreground">
-              Please select or create a project from the sidebar to manage your knowledge bases.
+      <div className="flex h-full items-center justify-center p-6">
+        <Card className="max-w-2xl w-full animate-scale-in">
+          <CardContent className="p-12 text-center">
+            {/* Icon with glow */}
+            <div className="relative inline-block mb-6">
+              <div className="absolute -inset-4 bg-white/5 rounded-full blur-2xl animate-glow-pulse" />
+              <div className="relative w-24 h-24 mx-auto rounded-3xl bg-muted border-2 border-foreground/20 flex items-center justify-center shadow-cosmic-lg">
+                <FolderOpen className="h-12 w-12 text-foreground/80" />
+              </div>
+            </div>
+
+            <h3 className="text-2xl font-bold mb-3 animate-fade-in">No Project Selected</h3>
+            <p className="text-sm text-muted-foreground mb-8 max-w-md mx-auto animate-fade-in delay-100">
+              Create or select a project to organize your knowledge bases, specifications, and AI prompts in one unified workspace.
             </p>
+
+            {/* Action buttons */}
+            <div className="flex gap-3 justify-center animate-fade-in delay-200">
+              <Button size="lg" className="gap-2" variant="outline" onClick={handleCreateProject}>
+                <Plus className="h-4 w-4" />
+                Create Project
+              </Button>
+              <Button size="lg" variant="outline" className="gap-2" onClick={handleOpenProject}>
+                <FolderOpen className="h-4 w-4" />
+                Open Project
+              </Button>
+            </div>
+
+            {/* Features list */}
+            <div className="mt-12 pt-8 border-t border-border/50 grid grid-cols-3 gap-6 text-left animate-fade-in delay-300">
+              <div className="space-y-2">
+                <Database className="h-5 w-5 text-foreground/60 mb-2" />
+                <h4 className="font-semibold text-sm">Knowledge Bases</h4>
+                <p className="text-xs text-muted-foreground">Organize documents and resources</p>
+              </div>
+              <div className="space-y-2">
+                <GitBranch className="h-5 w-5 text-foreground/60 mb-2" />
+                <h4 className="font-semibold text-sm">Specifications</h4>
+                <p className="text-xs text-muted-foreground">Define system behavior</p>
+              </div>
+              <div className="space-y-2">
+                <FileText className="h-5 w-5 text-foreground/60 mb-2" />
+                <h4 className="font-semibold text-sm">Prompts</h4>
+                <p className="text-xs text-muted-foreground">Reusable AI templates</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -335,7 +401,7 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
   return (
     <div className="flex flex-col h-full overflow-hidden relative top-12 px-6">
       {/* Header */}
-      <div className='flex justify-between mb-4'>
+      <div className='flex justify-between my-2'>
         <div className="flex justify-between shrink-0">
           <div className='flex items-start gap-2 flex-col'>
             {selectedKB && activeTab === 'resources' && (
