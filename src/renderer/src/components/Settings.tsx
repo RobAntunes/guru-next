@@ -199,7 +199,7 @@ export function Settings() {
                   Light
                 </Button>
                 <Button
-                  variant={settings.theme === "dark" ? "default" : "outline"}
+                  variant={settings.theme === "dark" ? "secondary" : "outline"}
                   size="sm"
                   onClick={() => handleSettingChange("theme", "dark")}
                 >

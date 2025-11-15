@@ -101,58 +101,58 @@ export function Dashboard({ onNavigate, knowledgeBases }: DashboardProps) {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div>
-          <h2 className="text-3xl font-light tracking-tight">Dashboard</h2>
+          <h2 className="text-3xl font-light tracking-tight text-foreground">Dashboard</h2>
           <p className="text-muted-foreground mt-1">Overview of your context engineering workspace</p>
         </div>
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleNavigate('knowledge')}>
+          <Card className="border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => handleNavigate('knowledge')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Knowledge Bases</CardTitle>
+              <CardTitle className="text-sm font-medium text-foreground">Knowledge Bases</CardTitle>
               <Database className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.knowledgeBases}</div>
+              <div className="text-2xl font-bold text-foreground">{stats.knowledgeBases}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 {stats.totalDocuments} documents total
               </p>
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleNavigate('specs')}>
+          <Card className="border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => handleNavigate('specs')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Specs</CardTitle>
+              <CardTitle className="text-sm font-medium text-foreground">Specs</CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.specs}</div>
+              <div className="text-2xl font-bold text-foreground">{stats.specs}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 Context specifications
               </p>
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleNavigate('prompts')}>
+          <Card className="border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => handleNavigate('prompts')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Prompts</CardTitle>
+              <CardTitle className="text-sm font-medium text-foreground">Prompts</CardTitle>
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.prompts}</div>
+              <div className="text-2xl font-bold text-foreground">{stats.prompts}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 Prompt templates
               </p>
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleNavigate('memory')}>
+          <Card className="border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => handleNavigate('memory')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Memory</CardTitle>
+              <CardTitle className="text-sm font-medium text-foreground">Memory</CardTitle>
               <Brain className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.memories}</div>
+              <div className="text-2xl font-bold text-foreground">{stats.memories}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 {stats.patterns} patterns, {stats.insights} insights
               </p>
@@ -161,18 +161,18 @@ export function Dashboard({ onNavigate, knowledgeBases }: DashboardProps) {
         </div>
 
         {/* Quick Actions */}
-        <Card>
+        <Card className="border-border">
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common tasks and shortcuts</CardDescription>
+            <CardTitle className="text-foreground">Quick Actions</CardTitle>
+            <CardDescription className="text-muted-foreground">Common tasks and shortcuts</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <Button
               variant="outline"
-              className="justify-start h-auto py-4"
+              className="justify-start h-auto py-4 bg-muted/30 hover:bg-muted text-foreground shadow-none!"
               onClick={() => handleNavigate('knowledge')}
             >
-              <Database className="mr-2 h-5 w-5" />
+              <Database className="mr-2 h-5 w-5" style={{ color: 'hsl(var(--primary))' }} />
               <div className="text-left">
                 <div className="font-medium">Create Knowledge Base</div>
                 <div className="text-xs text-muted-foreground">Add new documents</div>
@@ -181,10 +181,10 @@ export function Dashboard({ onNavigate, knowledgeBases }: DashboardProps) {
 
             <Button
               variant="outline"
-              className="justify-start h-auto py-4"
+              className="justify-start h-auto py-4 bg-muted/30 hover:bg-muted text-foreground shadow-none!"
               onClick={() => handleNavigate('specs')}
             >
-              <FileText className="mr-2 h-5 w-5" />
+              <FileText className="mr-2 h-5 w-5" style={{ color: 'hsl(var(--primary))' }} />
               <div className="text-left">
                 <div className="font-medium">New Spec</div>
                 <div className="text-xs text-muted-foreground">Define context rules</div>
@@ -193,10 +193,10 @@ export function Dashboard({ onNavigate, knowledgeBases }: DashboardProps) {
 
             <Button
               variant="outline"
-              className="justify-start h-auto py-4"
+              className="justify-start h-auto py-4 bg-muted/30 hover:bg-muted text-foreground shadow-none!"
               onClick={() => handleNavigate('prompts')}
             >
-              <MessageSquare className="mr-2 h-5 w-5" />
+              <MessageSquare className="mr-2 h-5 w-5" style={{ color: 'hsl(var(--primary))' }} />
               <div className="text-left">
                 <div className="font-medium">New Prompt</div>
                 <div className="text-xs text-muted-foreground">Create template</div>
@@ -205,10 +205,10 @@ export function Dashboard({ onNavigate, knowledgeBases }: DashboardProps) {
 
             <Button
               variant="outline"
-              className="justify-start h-auto py-4"
+              className="justify-start h-auto py-4 bg-muted/30 hover:bg-muted text-foreground shadow-none!"
               onClick={() => handleNavigate('symbols')}
             >
-              <Code className="mr-2 h-5 w-5" />
+              <Code className="mr-2 h-5 w-5" style={{ color: 'hsl(var(--primary))' }} />
               <div className="text-left">
                 <div className="font-medium">Code Symbols</div>
                 <div className="text-xs text-muted-foreground">Visualize codebase</div>
@@ -217,10 +217,10 @@ export function Dashboard({ onNavigate, knowledgeBases }: DashboardProps) {
 
             <Button
               variant="outline"
-              className="justify-start h-auto py-4"
+              className="justify-start h-auto py-4 bg-muted/30 hover:bg-muted text-foreground shadow-none!"
               onClick={() => handleNavigate('memory')}
             >
-              <Brain className="mr-2 h-5 w-5" />
+              <Brain className="mr-2 h-5 w-5" style={{ color: 'hsl(var(--primary))' }} />
               <div className="text-left">
                 <div className="font-medium">View Memory</div>
                 <div className="text-xs text-muted-foreground">Patterns & insights</div>
@@ -229,14 +229,14 @@ export function Dashboard({ onNavigate, knowledgeBases }: DashboardProps) {
 
             <Button
               variant="outline"
-              className="justify-start h-auto py-4"
+              className="justify-start h-auto py-4 bg-muted/30 hover:bg-muted text-foreground shadow-none!"
               onClick={async () => {
                 await memoryStorage.generateInsights()
                 analytics.track('insights_generated', { source: 'dashboard' })
                 loadDashboardData()
               }}
             >
-              <Lightbulb className="mr-2 h-5 w-5" />
+              <Lightbulb className="mr-2 h-5 w-5" style={{ color: 'hsl(var(--primary))' }} />
               <div className="text-left">
                 <div className="font-medium">Generate Insights</div>
                 <div className="text-xs text-muted-foreground">Analyze patterns</div>
@@ -247,16 +247,17 @@ export function Dashboard({ onNavigate, knowledgeBases }: DashboardProps) {
 
         {/* Recent Insights */}
         {recentInsights.length > 0 && (
-          <Card>
+          <Card className="border-border">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Recent Insights</CardTitle>
-                  <CardDescription>AI-generated patterns from your usage</CardDescription>
+                  <CardTitle className="text-foreground">Recent Insights</CardTitle>
+                  <CardDescription className="text-muted-foreground">AI-generated patterns from your usage</CardDescription>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted"
                   onClick={() => handleNavigate('memory')}
                 >
                   View All
@@ -266,10 +267,10 @@ export function Dashboard({ onNavigate, knowledgeBases }: DashboardProps) {
             </CardHeader>
             <CardContent className="space-y-3">
               {recentInsights.map((insight, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-3 rounded-lg border">
-                  <Lightbulb className="h-5 w-5 text-amber-500 mt-0.5" />
+                <div key={idx} className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/30">
+                  <Lightbulb className="h-5 w-5 mt-0.5" style={{ color: 'hsl(var(--primary))' }} />
                   <div className="flex-1">
-                    <p className="text-sm">{insight.content}</p>
+                    <p className="text-sm text-foreground/90">{insight.content}</p>
                     <p className="text-xs text-muted-foreground mt-1">
                       Confidence: {Math.round(insight.confidence * 100)}%
                     </p>
@@ -281,25 +282,25 @@ export function Dashboard({ onNavigate, knowledgeBases }: DashboardProps) {
         )}
 
         {/* Activity Summary */}
-        <Card>
+        <Card className="border-border">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <Activity className="h-5 w-5" style={{ color: 'hsl(var(--primary))' }} />
               Activity Summary
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Last Activity</span>
-              <span className="font-medium flex items-center gap-2">
-                <Clock className="h-4 w-4" />
+              <span className="font-medium flex items-center gap-2 text-foreground">
+                <Clock className="h-4 w-4 text-muted-foreground" />
                 {stats.lastActivity ? stats.lastActivity.toLocaleTimeString() : 'No activity yet'}
               </span>
             </div>
-            <Separator />
+            <Separator className="bg-border" />
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Total Resources</span>
-              <span className="font-medium">
+              <span className="font-medium text-foreground">
                 {stats.knowledgeBases + stats.specs + stats.prompts} items
               </span>
             </div>
@@ -308,24 +309,24 @@ export function Dashboard({ onNavigate, knowledgeBases }: DashboardProps) {
 
         {/* Getting Started (if no data) */}
         {stats.knowledgeBases === 0 && stats.specs === 0 && (
-          <Card className="border-dashed">
+          <Card className="border-dashed border-border">
             <CardHeader>
-              <CardTitle>Getting Started</CardTitle>
-              <CardDescription>Start building your context engineering workspace</CardDescription>
+              <CardTitle className="text-foreground">Getting Started</CardTitle>
+              <CardDescription className="text-muted-foreground">Start building your context engineering workspace</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <p className="text-sm">
-                  <strong>1. Create a Knowledge Base</strong> - Upload documents and build searchable context
+                <p className="text-sm text-foreground/90">
+                  <strong className="text-foreground">1. Create a Knowledge Base</strong> - Upload documents and build searchable context
                 </p>
-                <p className="text-sm">
-                  <strong>2. Define Specs</strong> - Set rules for how context should be organized
+                <p className="text-sm text-foreground/90">
+                  <strong className="text-foreground">2. Define Specs</strong> - Set rules for how context should be organized
                 </p>
-                <p className="text-sm">
-                  <strong>3. Build Prompts</strong> - Create reusable templates for AI interactions
+                <p className="text-sm text-foreground/90">
+                  <strong className="text-foreground">3. Build Prompts</strong> - Create reusable templates for AI interactions
                 </p>
               </div>
-              <Button onClick={() => handleNavigate('knowledge')} variant="outline">
+              <Button onClick={() => handleNavigate('knowledge')} variant="outline" className="bg-muted/30 hover:bg-muted shadow-none! text-foreground">
                 Get Started
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>

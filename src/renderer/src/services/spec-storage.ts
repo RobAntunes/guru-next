@@ -1,20 +1,27 @@
 /**
  * Spec Storage Service
- * Manages structured specifications separate from document-based knowledge
+ * Manages structured specifications as form-like documents with sections
  */
+
+export interface SpecSection {
+  id: string;
+  name: string;
+  description?: string;
+  fields: SpecField[];
+  isBase: boolean; // true for Overview, Requirements, Constraints, Notes
+  order: number;
+}
 
 export interface Spec {
   id: string;
-  category: 'api' | 'business' | 'architecture' | 'workflow' | 'constraints' | 'goals';
-  type: string;
   name: string;
   description: string;
   version: string;
   status: 'draft' | 'active' | 'deprecated';
   immutable: boolean;
-  fields: SpecField[];
+  sections: SpecSection[]; // Form sections instead of flat fields
   parentSpecId?: string; // For inheritance
-  inheritedFields?: string[]; // Track which fields are inherited
+  inheritedSections?: string[]; // Track which sections are inherited
   relatedSpecs?: string[]; // Related spec IDs
   history?: SpecHistoryEntry[]; // Version history
   projectId: string; // Associate with a project
@@ -24,7 +31,7 @@ export interface Spec {
     author: string;
     tags: string[];
   };
-  values: Record<string, any>;
+  values: Record<string, any>; // Flat values keyed by field IDs
 }
 
 export interface SpecHistoryEntry {
@@ -56,178 +63,178 @@ export interface SpecField {
 export interface SpecTemplate {
   id: string;
   name: string;
-  category: Spec['category'];
   description: string;
-  fields: SpecField[];
+  sections: SpecSection[]; // Includes base sections + template-specific sections
+}
+
+// Base sections that every spec has
+export function getBaseSections(): SpecSection[] {
+  return [
+    {
+      id: 'overview',
+      name: 'Overview',
+      description: 'What this specification defines',
+      isBase: true,
+      order: 0,
+      fields: [
+        {
+          id: 'overview-summary',
+          name: 'Summary',
+          type: 'markdown',
+          required: true,
+          placeholder: 'Brief overview of what this spec defines...'
+        }
+      ]
+    },
+    {
+      id: 'requirements',
+      name: 'Requirements',
+      description: 'What must be true',
+      isBase: true,
+      order: 1,
+      fields: [
+        {
+          id: 'requirements-list',
+          name: 'Requirements',
+          type: 'markdown',
+          required: false,
+          placeholder: '- Requirement 1\n- Requirement 2\n- Requirement 3'
+        }
+      ]
+    },
+    {
+      id: 'constraints',
+      name: 'Constraints',
+      description: 'What cannot or should not happen',
+      isBase: true,
+      order: 2,
+      fields: [
+        {
+          id: 'constraints-list',
+          name: 'Constraints',
+          type: 'markdown',
+          required: false,
+          placeholder: '- Constraint 1\n- Constraint 2'
+        }
+      ]
+    },
+    {
+      id: 'notes',
+      name: 'Notes',
+      description: 'Additional context and information',
+      isBase: true,
+      order: 3,
+      fields: [
+        {
+          id: 'notes-content',
+          name: 'Notes',
+          type: 'markdown',
+          required: false,
+          placeholder: 'Any additional notes or context...'
+        }
+      ]
+    }
+  ];
 }
 
 // Predefined templates for common spec types
 const specTemplates: SpecTemplate[] = [
   {
+    id: 'blank',
+    name: 'Blank Spec',
+    description: 'Start with just the base sections',
+    sections: getBaseSections()
+  },
+  {
     id: 'api-contract',
     name: 'API Contract',
-    category: 'api',
     description: 'Define API endpoints, methods, and response formats',
-    fields: [
+    sections: [
+      ...getBaseSections(),
       {
-        id: 'endpoint',
-        name: 'Endpoint',
-        type: 'text',
-        required: true,
-        placeholder: '/api/v1/resource',
-        validation: { pattern: '^/.*' }
-      },
-      {
-        id: 'method',
-        name: 'HTTP Method',
-        type: 'select',
-        required: true,
-        options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
-      },
-      {
-        id: 'request-schema',
-        name: 'Request Schema',
-        type: 'json',
-        required: false,
-        placeholder: '{ "name": "string", "age": "number" }'
-      },
-      {
-        id: 'response-schema',
-        name: 'Response Schema',
-        type: 'json',
-        required: true,
-        placeholder: '{ "id": "string", "data": {} }'
-      },
-      {
-        id: 'auth-required',
-        name: 'Authentication Required',
-        type: 'boolean',
-        required: true,
-        defaultValue: true
+        id: 'api-endpoints',
+        name: 'API Endpoints',
+        description: 'Define the endpoints for this API',
+        isBase: false,
+        order: 4,
+        fields: [
+          {
+            id: 'endpoints',
+            name: 'Endpoints',
+            type: 'markdown',
+            required: false,
+            placeholder: '## POST /api/users\nCreate a new user...\n\n## GET /api/users/:id\nFetch user details...'
+          },
+          {
+            id: 'authentication',
+            name: 'Authentication',
+            type: 'markdown',
+            required: false,
+            placeholder: 'Describe authentication requirements...'
+          }
+        ]
       }
     ]
   },
   {
-    id: 'business-rule',
-    name: 'Business Rule',
-    category: 'business',
-    description: 'Define business logic and constraints',
-    fields: [
+    id: 'data-model',
+    name: 'Data Model',
+    description: 'Define data structures and relationships',
+    sections: [
+      ...getBaseSections(),
       {
-        id: 'rule-name',
-        name: 'Rule Name',
-        type: 'text',
-        required: true,
-        placeholder: 'User Registration Validation'
-      },
-      {
-        id: 'condition',
-        name: 'Condition',
-        type: 'code',
-        required: true,
-        placeholder: 'if (user.age < 18) { return false; }'
-      },
-      {
-        id: 'action',
-        name: 'Action',
-        type: 'text',
-        required: true,
-        placeholder: 'Reject registration with error message'
-      },
-      {
-        id: 'priority',
-        name: 'Priority',
-        type: 'number',
-        required: true,
-        defaultValue: 1,
-        validation: { min: 1, max: 10 }
+        id: 'schema',
+        name: 'Schema',
+        description: 'Database schema and structure',
+        isBase: false,
+        order: 4,
+        fields: [
+          {
+            id: 'schema-definition',
+            name: 'Schema Definition',
+            type: 'json',
+            required: false,
+            placeholder: '{\n  "users": {\n    "id": "uuid",\n    "email": "string",\n    "createdAt": "timestamp"\n  }\n}'
+          },
+          {
+            id: 'relationships',
+            name: 'Relationships',
+            type: 'markdown',
+            required: false,
+            placeholder: '- User has many Posts\n- Post belongs to User'
+          }
+        ]
       }
     ]
   },
   {
-    id: 'architecture-decision',
-    name: 'Architecture Decision Record (ADR)',
-    category: 'architecture',
-    description: 'Document architectural decisions and their rationale',
-    fields: [
+    id: 'feature-spec',
+    name: 'Feature Specification',
+    description: 'Define a new feature or functionality',
+    sections: [
+      ...getBaseSections(),
       {
-        id: 'title',
-        name: 'Title',
-        type: 'text',
-        required: true,
-        placeholder: 'Use React for Frontend Framework'
-      },
-      {
-        id: 'status',
-        name: 'Status',
-        type: 'select',
-        required: true,
-        options: ['proposed', 'accepted', 'deprecated', 'superseded'],
-        defaultValue: 'proposed'
-      },
-      {
-        id: 'context',
-        name: 'Context',
-        type: 'markdown',
-        required: true,
-        placeholder: 'What is the issue that we\'re seeing that is motivating this decision?'
-      },
-      {
-        id: 'decision',
-        name: 'Decision',
-        type: 'markdown',
-        required: true,
-        placeholder: 'What is the change that we\'re proposing and/or doing?'
-      },
-      {
-        id: 'consequences',
-        name: 'Consequences',
-        type: 'markdown',
-        required: true,
-        placeholder: 'What becomes easier or more difficult to do because of this change?'
-      }
-    ]
-  },
-  {
-    id: 'project-goals',
-    name: 'Project Goals',
-    category: 'goals',
-    description: 'Define project objectives and success criteria',
-    fields: [
-      {
-        id: 'goal-name',
-        name: 'Goal Name',
-        type: 'text',
-        required: true,
-        placeholder: 'Improve User Engagement'
-      },
-      {
-        id: 'description',
-        name: 'Description',
-        type: 'markdown',
-        required: true,
-        placeholder: 'Detailed description of what this goal means'
-      },
-      {
-        id: 'success-criteria',
-        name: 'Success Criteria',
-        type: 'multiselect',
-        required: true,
-        options: ['User Metrics', 'Performance', 'Revenue', 'Quality', 'Adoption']
-      },
-      {
-        id: 'target-date',
-        name: 'Target Date',
-        type: 'text',
-        required: false,
-        placeholder: 'Q2 2025'
-      },
-      {
-        id: 'measurable-outcomes',
-        name: 'Measurable Outcomes',
-        type: 'markdown',
-        required: true,
-        placeholder: '- 20% increase in daily active users\n- 15% reduction in bounce rate'
+        id: 'user-stories',
+        name: 'User Stories',
+        description: 'User stories and acceptance criteria',
+        isBase: false,
+        order: 4,
+        fields: [
+          {
+            id: 'stories',
+            name: 'Stories',
+            type: 'markdown',
+            required: false,
+            placeholder: 'As a [user type], I want to [action] so that [benefit]...'
+          },
+          {
+            id: 'acceptance-criteria',
+            name: 'Acceptance Criteria',
+            type: 'markdown',
+            required: false,
+            placeholder: '- [ ] Criterion 1\n- [ ] Criterion 2\n- [ ] Criterion 3'
+          }
+        ]
       }
     ]
   }
@@ -251,11 +258,6 @@ class SpecStorage {
     }));
   }
 
-  async getSpecsByCategory(category: Spec['category']): Promise<Spec[]> {
-    const allSpecs = await this.getAllSpecs();
-    return allSpecs.filter(spec => spec.category === category);
-  }
-
   async getSpec(id: string): Promise<Spec | null> {
     const allSpecs = await this.getAllSpecs();
     return allSpecs.find(spec => spec.id === id) || null;
@@ -273,35 +275,37 @@ class SpecStorage {
       projectId = currentProject.id;
     }
 
-    let fields = spec.fields;
+    let sections = spec.sections;
     let values = spec.values;
-    let inheritedFields: string[] = [];
+    let inheritedSections: string[] = [];
 
     // Handle inheritance
     if (spec.parentSpecId) {
       const parentSpec = await this.getSpec(spec.parentSpecId);
       if (parentSpec) {
-        // Merge parent fields with child fields
-        const childFieldIds = fields.map(f => f.id);
-        const parentFieldsToInherit = parentSpec.fields.filter(f => !childFieldIds.includes(f.id));
-        fields = [...parentFieldsToInherit, ...fields];
-        
-        // Inherit parent values for inherited fields
-        parentFieldsToInherit.forEach(field => {
-          if (!(field.id in values) && field.id in parentSpec.values) {
-            values[field.id] = parentSpec.values[field.id];
-            inheritedFields.push(field.id);
-          }
+        // Merge parent sections with child sections
+        const childSectionIds = sections.map(s => s.id);
+        const parentSectionsToInherit = parentSpec.sections.filter(s => !childSectionIds.includes(s.id));
+        sections = [...parentSectionsToInherit, ...sections];
+
+        // Inherit parent values for inherited sections
+        parentSectionsToInherit.forEach(section => {
+          section.fields.forEach(field => {
+            if (!(field.id in values) && field.id in parentSpec.values) {
+              values[field.id] = parentSpec.values[field.id];
+            }
+          });
+          inheritedSections.push(section.id);
         });
       }
     }
 
     const newSpec: Spec = {
       ...spec,
-      fields,
+      sections,
       values,
       projectId,
-      inheritedFields: inheritedFields.length > 0 ? inheritedFields : undefined,
+      inheritedSections: inheritedSections.length > 0 ? inheritedSections : undefined,
       id: `spec-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       history: [{
         version: spec.version,

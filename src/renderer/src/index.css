@@ -3,7 +3,7 @@
 
 @layer base {
   :root {
-    /* Light theme: Warm beige, cream, orange, and brown palette */
+    /* Light theme: Warm beige, cream with deep red accent */
     --background: 30 25% 96%; /* Soft cream background */
     --foreground: 25 35% 15%; /* Deep brown text */
 
@@ -13,7 +13,7 @@
     --popover: 35 30% 98%;
     --popover-foreground: 25 35% 15%;
 
-    --primary: 25 60% 45%; /* Rich burnt orange */
+    --primary: 0 70% 45%; /* Deep red accent */
     --primary-foreground: 35 30% 98%;
 
     --secondary: 35 20% 88%; /* Light beige */
@@ -30,7 +30,7 @@
 
     --border: 30 18% 85%; /* Light tan borders */
     --input: 30 18% 88%;
-    --ring: 25 60% 45%; /* Orange focus ring */
+    --ring: 0 70% 45%; /* Deep red focus ring */
     --radius: 0.5rem;
   }
 
@@ -46,9 +46,9 @@
     --popover: 0 0% 12%;
     --popover-foreground: 0 0% 98%;
 
-    /* Pure white primary */
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 10%;
+    /* Deep red primary accent */
+    --primary: 0 75% 50%;
+    --primary-foreground: 0 0% 98%;
 
     /* Mid-gray secondary */
     --secondary: 0 0% 20%;
@@ -70,8 +70,8 @@
     --border: 0 0% 22%;
     --input: 0 0% 20%;
 
-    /* White focus ring */
-    --ring: 0 0% 98%;
+    /* Deep red focus ring */
+    --ring: 0 75% 50%;
   }
 }
 
@@ -162,7 +162,51 @@
 }
 
 @layer utilities {
-  /* Adaptive shadows - dark theme */
+  /* Refined subtle shadows - dark theme */
+  .dark .shadow-refined {
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.3),
+      0 0 1px rgba(0, 0, 0, 0.5),
+      inset 0 0.5px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  .dark .shadow-refined-lg {
+    box-shadow:
+      0 8px 24px rgba(0, 0, 0, 0.4),
+      0 0 1px rgba(0, 0, 0, 0.6),
+      inset 0 0.5px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .dark .shadow-glow {
+    box-shadow:
+      0 0 20px rgba(184, 90, 50, 0.15),
+      0 2px 8px rgba(0, 0, 0, 0.3),
+      inset 0 0.5px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  /* Refined subtle shadows - light theme */
+  .shadow-refined {
+    box-shadow:
+      0 2px 8px hsl(25 40% 30% / 0.08),
+      0 1px 2px hsl(25 40% 30% / 0.06),
+      inset 0 0.5px 0 hsl(0 0% 100% / 0.6);
+  }
+
+  .shadow-refined-lg {
+    box-shadow:
+      0 8px 24px hsl(25 40% 30% / 0.1),
+      0 2px 4px hsl(25 40% 30% / 0.08),
+      inset 0 0.5px 0 hsl(0 0% 100% / 0.7);
+  }
+
+  .shadow-glow {
+    box-shadow:
+      0 0 20px hsl(25 60% 45% / 0.15),
+      0 2px 8px hsl(25 40% 30% / 0.08),
+      inset 0 0.5px 0 hsl(0 0% 100% / 0.6);
+  }
+
+  /* Legacy cosmic shadows (keeping for compatibility) */
   .dark .shadow-cosmic {
     box-shadow:
       0 4px 16px rgba(0, 0, 0, 0.5),
@@ -177,7 +221,6 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
-  /* Adaptive shadows - light theme */
   .shadow-cosmic {
     box-shadow:
       0 4px 16px hsl(25 40% 30% / 0.12),
@@ -456,5 +499,10 @@
   .writing-mode-vertical {
     writing-mode: vertical-rl;
     text-orientation: mixed;
+  }
+
+  /* Tab indicator with primary color */
+  .tab-indicator::after {
+    background-color: hsl(var(--primary)) !important;
   }
 }

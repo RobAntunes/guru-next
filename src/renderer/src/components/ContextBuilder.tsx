@@ -380,7 +380,9 @@ export function ContextBuilder() {
                 value={selectedRepo}
                 onChange={(e) => setSelectedRepo(e.target.value)}
               />
-              <Button onClick={() => {
+              <Button 
+                variant="secondary"
+              onClick={() => {
                 if (window.api?.file?.openFolderDialog) {
                   window.api.file.openFolderDialog().then((result: any) => {
                     if (result.success && result.data) {
@@ -394,6 +396,7 @@ export function ContextBuilder() {
             </div>
 
             <Button 
+            variant="secondary"
               onClick={handleBuildContext}
               disabled={isLoading || !query.trim() || !selectedRepo}
               className="w-full"

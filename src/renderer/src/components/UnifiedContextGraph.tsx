@@ -169,10 +169,10 @@ export const UnifiedContextGraph: React.FC<UnifiedContextGraphProps> = ({
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('collision', d3.forceCollide().radius(d => {
         const node = d as any;
-        return getNodeRadius(node) + 40;
+        return getNodeSize(node) / 2 + 30;
       }));
 
-    // Draw edges with different styles
+    // Draw edges with gradient colors (matching marketing design)
     const link = g.append('g')
       .selectAll('line')
       .data(enhancedEdges)
@@ -180,32 +180,32 @@ export const UnifiedContextGraph: React.FC<UnifiedContextGraphProps> = ({
       .append('line')
       .attr('stroke', d => {
         switch(d.type) {
-          case 'uses': return '#8b5cf6';
-          case 'inherits': return '#06b6d4';
-          case 'relates_to': return '#10b981';
-          default: return '#4a5568';
+          case 'uses': return '#b85a32';
+          case 'inherits': return '#E09952';
+          case 'relates_to': return '#a6a6a6';
+          default: return '#383838';
         }
       })
       .attr('stroke-opacity', d => {
         switch(d.type) {
-          case 'uses': return 0.2;
-          case 'inherits': return 0.6;
-          case 'relates_to': return 0.3;
-          default: return 0.4;
+          case 'uses': return 0.3;
+          case 'inherits': return 0.4;
+          case 'relates_to': return 0.2;
+          default: return 0.15;
         }
       })
       .attr('stroke-width', d => {
         switch(d.type) {
-          case 'inherits': return 2;
-          case 'relates_to': return 1.5;
+          case 'inherits': return 1.5;
+          case 'relates_to': return 1;
           case 'uses': return 1;
-          default: return 2;
+          default: return 1;
         }
       })
       .attr('stroke-dasharray', d => {
         switch(d.type) {
-          case 'uses': return '5,5';
-          case 'relates_to': return '3,3';
+          case 'uses': return '4,4';
+          case 'relates_to': return '2,2';
           default: return 'none';
         }
       });
@@ -221,28 +221,52 @@ export const UnifiedContextGraph: React.FC<UnifiedContextGraphProps> = ({
         setSelectedNode(d);
       });
 
-    // Add node circles
-    nodeGroup.append('circle')
-      .attr('r', d => getNodeRadius(d))
-      .attr('fill', d => getNodeColor(d))
-      .attr('stroke', d => d.active ? '#3b82f6' : '#6b7280')
-      .attr('stroke-width', d => d.active ? 2 : 1)
-      .attr('opacity', d => d.active ? 1 : 0.5);
+    // Add node rounded rectangles (matching marketing design)
+    nodeGroup.append('rect')
+      .attr('width', d => getNodeSize(d))
+      .attr('height', d => getNodeSize(d))
+      .attr('x', d => -getNodeSize(d) / 2)
+      .attr('y', d => -getNodeSize(d) / 2)
+      .attr('rx', 8)
+      .attr('ry', 8)
+      .attr('fill', '#141414')
+      .attr('stroke', d => d.active ? '#383838' : '#2a2a2a')
+      .attr('stroke-width', 1)
+      .attr('opacity', d => d.active ? 1 : 0.6)
+      .attr('filter', d => d.active ? 'url(#glow)' : 'none');
+
+    // Add subtle glow filter
+    const defs = svg.append('defs');
+    const filter = defs.append('filter')
+      .attr('id', 'glow')
+      .attr('x', '-50%')
+      .attr('y', '-50%')
+      .attr('width', '200%')
+      .attr('height', '200%');
+
+    filter.append('feGaussianBlur')
+      .attr('stdDeviation', '2')
+      .attr('result', 'coloredBlur');
+
+    const feMerge = filter.append('feMerge');
+    feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+    feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
     // Add node icons
     nodeGroup.append('text')
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'middle')
-      .attr('font-size', '14px')
-      .attr('fill', 'white')
+      .attr('font-size', '16px')
+      .attr('fill', d => getNodeIconColor(d))
       .text(d => getNodeIcon(d));
 
     // Add node labels
     nodeGroup.append('text')
       .attr('text-anchor', 'middle')
-      .attr('y', d => getNodeRadius(d) + 15)
+      .attr('y', d => getNodeSize(d) / 2 + 14)
       .attr('font-size', '10px')
-      .attr('fill', '#e5e7eb')
+      .attr('fill', '#a6a6a6')
+      .attr('font-weight', '500')
       .text(d => {
         if (d.type === 'group' && d.metadata?.documentCount !== undefined) {
           const activeCount = d.metadata.activeDocumentCount || 0;
@@ -391,6 +415,18 @@ export const UnifiedContextGraph: React.FC<UnifiedContextGraphProps> = ({
     }
   };
 
+  const getNodeSize = (node: ContextNode): number => {
+    switch (node.type) {
+      case 'group': return 48;
+      case 'directory': return 44;
+      case 'spec': return 40;
+      case 'tool': return 40;
+      case 'memory': return 40;
+      case 'session': return 36;
+      default: return 32;
+    }
+  };
+
   const getNodeColor = (node: ContextNode): string => {
     if (!node.active) return '#4b5563'; // Gray for inactive
 
@@ -402,6 +438,20 @@ export const UnifiedContextGraph: React.FC<UnifiedContextGraphProps> = ({
       case 'memory': return '#f59e0b'; // Orange
       case 'session': return '#ef4444'; // Red
       default: return '#6b7280';
+    }
+  };
+
+  const getNodeIconColor = (node: ContextNode): string => {
+    if (!node.active) return '#4b5563';
+
+    switch (node.category) {
+      case 'knowledge': return '#b85a32';
+      case 'specs': return '#E09952';
+      case 'filesystem': return '#a6a6a6';
+      case 'tools': return '#d4d4d4';
+      case 'memory': return '#b85a32';
+      case 'session': return '#E09952';
+      default: return '#737373';
     }
   };
 
@@ -443,9 +493,9 @@ export const UnifiedContextGraph: React.FC<UnifiedContextGraphProps> = ({
       {/* Grid Layout: Graph (2fr) + Info Panel (1fr) */}
       <div className="grid gap-4" style={{ gridTemplateColumns: '2fr 1fr' }}>
         {/* Graph Visualization */}
-        <Card className="bg-background/50 p-4 relative" style={{ height: '700px' }} ref={containerRef}>
+        <Card className="bg-card border-border p-4 relative" style={{ height: '700px' }} ref={containerRef}>
           {/* Shift Key Indicator */}
-          <div className="absolute top-4 left-4 z-10 bg-background/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-border/40 shadow-sm">
+          <div className="absolute top-4 left-4 z-10 bg-card px-3 py-2 rounded-lg border border-border">
             <p className="text-xs text-muted-foreground flex items-center gap-2">
               <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono border border-border">Shift</kbd>
               Press and hold for pan and zoom
@@ -461,8 +511,8 @@ export const UnifiedContextGraph: React.FC<UnifiedContextGraphProps> = ({
         {/* Info Panel */}
         <div className="flex flex-col gap-3" style={{ height: '700px' }}>
           {/* Header Stats */}
-          <Card className="bg-background/50 p-4 shrink-0">
-            <h3 className="text-sm font-semibold mb-3">Overview</h3>
+          <Card className="bg-card border-border p-4 shrink-0">
+            <h3 className="text-xs font-semibold mb-3 text-foreground uppercase tracking-[0.18em]">Overview</h3>
             <div className="flex items-center gap-2 mb-3">
               <Badge variant="secondary" className="text-xs">
                 {graphData.stats.totalNodes} nodes

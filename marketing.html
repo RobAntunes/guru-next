@@ -1,0 +1,964 @@
+
+  <body class="min-h-screen bg-[#1a1a1a] text-[#fafafa] antialiased flex" style="font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+    <!-- Grain / texture overlay -->
+    <div class="pointer-events-none fixed inset-0 z-0 opacity-[0.12] mix-blend-soft-light" style="background-image: url('https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&amp;fit=crop&amp;w=1600&amp;q=70'); background-size: cover; background-position: center;"></div>
+
+    <!-- Lucide inline icons (as symbols) -->
+    <svg class="hidden">
+      <!-- generic icons -->
+      <symbol id="icon-home" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9.5L12 3l9 6.5M5 10.5V21h14V10.5"></path>
+      </symbol>
+      <symbol id="icon-compass" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polygon points="16 8 11 13 8 16 9 9 16 8"></polygon>
+      </symbol>
+      <symbol id="icon-layers" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3l8 4.5-8 4.5L4 7.5 12 3z"></path>
+        <path d="M4 12l8 4.5 8-4.5"></path>
+        <path d="M4 16.5L12 21l8-4.5"></path>
+      </symbol>
+      <symbol id="icon-database" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <ellipse cx="12" cy="5" rx="7" ry="3"></ellipse>
+        <path d="M5 5v14c0 1.66 3.13 3 7 3s7-1.34 7-3V5"></path>
+        <path d="M5 12c0 1.66 3.13 3 7 3s7-1.34 7-3"></path>
+      </symbol>
+      <symbol id="icon-git-branch" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="6" cy="4" r="2"></circle>
+        <circle cx="18" cy="8" r="2"></circle>
+        <circle cx="6" cy="20" r="2"></circle>
+        <path d="M8 5h4a4 4 0 0 1 4 4v0a4 4 0 0 1-4 4H8"></path>
+        <path d="M6 6v12"></path>
+      </symbol>
+      <symbol id="icon-cpu" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="8" y="8" width="8" height="8" rx="1"></rect>
+        <path d="M4 10h2M4 14h2M18 10h2M18 14h2M10 4v2M14 4v2M10 18v2M14 18v2"></path>
+      </symbol>
+      <symbol id="icon-sliders" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="4" y1="21" x2="4" y2="14"></line>
+        <line x1="4" y1="10" x2="4" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12" y2="3"></line>
+        <line x1="20" y1="21" x2="20" y2="16"></line>
+        <line x1="20" y1="12" x2="20" y2="3"></line>
+        <line x1="2" y1="14" x2="6" y2="14"></line>
+        <line x1="10" y1="8" x2="14" y2="8"></line>
+        <line x1="18" y1="16" x2="22" y2="16"></line>
+      </symbol>
+      <symbol id="icon-terminal" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 17l4-4-4-4"></path>
+        <path d="M11 19h7"></path>
+        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+      </symbol>
+      <symbol id="icon-eye" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path>
+        <circle cx="12" cy="12" r="3"></circle>
+      </symbol>
+      <symbol id="icon-lock" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="11" width="16" height="9" rx="2"></rect>
+        <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
+      </symbol>
+      <symbol id="icon-monitor" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="14" rx="2"></rect>
+        <path d="M8 21h8M12 18v3"></path>
+      </symbol>
+      <symbol id="icon-github" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77 5.44 5.44 0 0 0 3.5 8.5c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+      </symbol>
+      <symbol id="icon-download" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </symbol>
+      <symbol id="icon-cable" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 7V3H4v4"></path>
+        <path d="M20 17v4h-2v-4"></path>
+        <path d="M8 7h4a4 4 0 0 1 4 4v6"></path>
+        <path d="M16 17h-4a4 4 0 0 1-4-4V7"></path>
+      </symbol>
+      <symbol id="icon-windows" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round">
+        <path d="M4 5.5L11.5 4v7H4z"></path>
+        <path d="M12.5 4L20 3v8h-7.5z"></path>
+        <path d="M4 12.5h7.5V20L4 18.5z"></path>
+        <path d="M12.5 12.5H20V21l-7.5-1.5z"></path>
+      </symbol>
+      <symbol id="icon-apple" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16.5 3.5c-.8.1-1.7.6-2.2 1.2-.5.6-.9 1.6-.8 2.5"></path>
+        <path d="M19 10.5c-.1-1.2.5-2.2.6-2.4-.3-.2-1.5-1.1-3-1-.4 0-1.4.1-2.2.9-.5.5-1 1.4-1 2.4 0 1 .5 2 1.1 2.6-.2.3-.4.6-.7.9-.5.5-1 .9-1.5.9-.6 0-.8-.3-1.6-.3-.8 0-1 .3-1.6.3-.6 0-1.1-.5-1.6-1-1.1-1.2-1.9-3.3-1.9-5.1 0-1 .2-2 .7-2.8.5-.9 1.4-1.5 2.3-1.5.6 0 1.1.3 1.6.3.5 0 .8-.3 1.6-.3.9 0 1.5.5 2 1 .6.6.8 1.2 1 1.6.3.1 1.3.5 2.2.4z"></path>
+      </symbol>
+      <symbol id="icon-linux" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 4a3 3 0 0 1 6 0v3a4 4 0 0 1-8 0z"></path>
+        <path d="M6 18a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v2H6z"></path>
+        <path d="M8 11s-.5 2.5-2 4"></path>
+        <path d="M16 11s.5 2.5 2 4"></path>
+        <circle cx="10" cy="6.5" r=".5"></circle>
+        <circle cx="14" cy="6.5" r=".5"></circle>
+      </symbol>
+      <symbol id="icon-circuit" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="6" cy="6" r="2"></circle>
+        <circle cx="18" cy="6" r="2"></circle>
+        <circle cx="6" cy="18" r="2"></circle>
+        <circle cx="18" cy="18" r="2"></circle>
+        <path d="M8 6h8M6 8v8M18 8v8M8 18h8"></path>
+      </symbol>
+      <symbol id="icon-code-2" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="16 18 22 12 16 6"></polyline>
+        <polyline points="8 6 2 12 8 18"></polyline>
+      </symbol>
+      <symbol id="icon-boxes" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="8" height="8" rx="1"></rect>
+        <rect x="13" y="3" width="8" height="8" rx="1"></rect>
+        <rect x="8" y="13" width="8" height="8" rx="1"></rect>
+      </symbol>
+      <symbol id="icon-network" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="5" r="2"></circle>
+        <circle cx="5" cy="19" r="2"></circle>
+        <circle cx="19" cy="19" r="2"></circle>
+        <path d="M10.6 6.5 6 17"></path>
+        <path d="M13.4 6.5 18 17"></path>
+        <path d="M8 19h8"></path>
+      </symbol>
+      <symbol id="icon-brain-circuit" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 3a3 3 0 0 0-3 3v1.5A3.5 3.5 0 0 0 2.5 11 3.5 3.5 0 0 0 6 14.5V16a3 3 0 0 0 3 3"></path>
+        <path d="M15 3a3 3 0 0 1 3 3v1.5A3.5 3.5 0 0 1 21.5 11 3.5 3.5 0 0 1 18 14.5V16a3 3 0 0 1-3 3"></path>
+        <path d="M12 6v3"></path>
+        <path d="M9 9h3"></path>
+        <path d="M12 12v3"></path>
+        <path d="M12 12h3"></path>
+      </symbol>
+      <symbol id="icon-file-code" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <path d="M10 13l-2 2 2 2"></path>
+        <path d="M14 17l2-2-2-2"></path>
+      </symbol>
+      <symbol id="icon-shield-check" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s7-3 7-10V5l-7-3-7 3v7c0 7 7 10 7 10z"></path>
+        <path d="M9 12l2 2 4-4"></path>
+      </symbol>
+      <symbol id="icon-activity" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+      </symbol>
+      <symbol id="icon-pie-chart" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21.21 15.89A10 10 0 1 1 12 2v10z"></path>
+        <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+      </symbol>
+      <!-- Extra icons used later -->
+      <symbol id="icon-search" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <line x1="16.65" y1="16.65" x2="21" y2="21"></line>
+      </symbol>
+      <symbol id="icon-menu" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="4" y1="6" x2="20" y2="6"></line>
+        <line x1="4" y1="12" x2="20" y2="12"></line>
+        <line x1="4" y1="18" x2="20" y2="18"></line>
+      </symbol>
+      <symbol id="icon-close" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </symbol>
+      <symbol id="icon-moon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 0 1 11.21 3 7 7 0 1 0 21 12.79z"></path>
+      </symbol>
+    </svg>
+
+    <!-- Sidebar (used as main nav) -->
+    <aside class="hidden md:flex flex-col w-24 border-r border-[#383838]/70 bg-[#101010]/80 backdrop-blur-2xl relative z-10">
+      <!-- logo -->
+      <div class="h-20 flex items-center justify-center border-b border-[#383838]/70">
+        <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-[#242424] border border-[#383838] shadow-sm shadow-black/40">
+          <span class="text-xs tracking-[0.18em] font-semibold uppercase text-[#fafafa]" style="font-family: 'Syne', system-ui;">
+            GU
+          </span>
+        </div>
+      </div>
+
+      <!-- nav (app-style) -->
+      <nav class="flex-1 flex flex-col items-center pt-6 gap-4 text-[#a6a6a6] text-[11px]">
+        <a href="#hero" class="group flex flex-col items-center gap-1 px-3 py-2 rounded-2xl bg-[#242424] text-[#fafafa] border border-[#4b4b4b] shadow-sm shadow-black/40 transition transform hover:-translate-y-[1px] hover:border-[#b85a32]/80 hover:text-white">
+          <svg class="w-5 h-5" aria-hidden="true">
+            <use href="#icon-home"></use>
+          </svg>
+          <span class="uppercase tracking-[0.16em] text-[9px]">Home</span>
+        </a>
+
+        <a href="#features" class="group flex flex-col items-center gap-1 px-3 py-2 rounded-2xl border border-transparent hover:border-[#383838] hover:bg-[#242424]/70 hover:text-[#fafafa] transition transform hover:-translate-y-[1px]">
+          <svg class="w-5 h-5" aria-hidden="true">
+            <use href="#icon-layers"></use>
+          </svg>
+          <span class="uppercase tracking-[0.16em] text-[9px]">Features</span>
+        </a>
+
+        <a href="#tour" class="group flex flex-col items-center gap-1 px-3 py-2 rounded-2xl border border-transparent hover:border-[#383838] hover:bg-[#242424]/70 hover:text-[#fafafa] transition transform hover:-translate-y-[1px]">
+          <svg class="w-5 h-5" aria-hidden="true">
+            <use href="#icon-git-branch"></use>
+          </svg>
+          <span class="uppercase tracking-[0.16em] text-[9px]">Tour</span>
+        </a>
+
+        <a href="#pricing" class="group flex flex-col items-center gap-1 px-3 py-2 rounded-2xl border border-transparent hover:border-[#383838] hover:bg-[#242424]/70 hover:text-[#fafafa] transition transform hover:-translate-y-[1px]">
+          <svg class="w-5 h-5" aria-hidden="true">
+            <use href="#icon-terminal"></use>
+          </svg>
+          <span class="uppercase tracking-[0.16em] text-[9px]">Pricing</span>
+        </a>
+      </nav>
+
+      <!-- profile / theme toggle placeholder -->
+      <div class="pb-6 border-t border-[#383838]/70 flex flex-col items-center gap-4">
+        <button class="relative w-9 h-9 rounded-full border border-[#383838] overflow-hidden bg-[#242424] hover:border-[#fafafa]/60 transition">
+          <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&amp;fit=crop&amp;w=200&amp;q=60" alt="User" class="w-full h-full object-cover">
+        </button>
+        <button class="flex items-center justify-center w-9 h-9 rounded-2xl border border-[#383838] text-[#a6a6a6] hover:text-[#fafafa] hover:border-[#fafafa]/60 bg-[#242424]/60 transition">
+          <svg class="w-4 h-4" aria-hidden="true">
+            <use href="#icon-moon"></use>
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="flex-1 relative z-10 overflow-x-hidden overflow-y-auto">
+      <!-- background glow gradients -->
+      <div class="pointer-events-none fixed inset-0 -z-10">
+        <div class="absolute -top-40 -right-32 w-96 h-96 rounded-full bg-white/5 blur-3xl opacity-70"></div>
+        <div class="absolute top-64 -left-40 w-[420px] h-[420px] rounded-full bg-[#b85a32]/10 blur-3xl opacity-60"></div>
+        <div class="absolute bottom-[-200px] right-16 w-[360px] h-[360px] rounded-full bg-white/5 blur-3xl opacity-40"></div>
+      </div>
+
+      <div class="max-w-6xl mx-auto px-5 sm:px-8 pt-6 sm:pt-10 pb-20 lg:pt-10">
+        <!-- Hero (header bar removed) -->
+        <section id="hero" class="relative mb-10 lg:mb-12">
+          <div class="grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-10 lg:gap-14 items-center lg:items-start sm:gap-8">
+            <!-- Hero copy -->
+            <div class="max-w-xl">
+              <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#101010]/90 border border-[#383838] mb-5">
+                <span class="inline-flex w-1.5 h-1.5 rounded-full bg-emerald-400/80"></span>
+                <span class="text-[11px] uppercase tracking-[0.18em] text-[#a6a6a6]">
+                  Local-first • MCP-native
+                </span>
+              </div>
+
+              <h1 class="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight mb-4" style="font-family: 'Syne', system-ui;">
+                <span class="block mb-1 text-[13px] uppercase tracking-[0.35em] text-[#a6a6a6] font-medium">
+                  Introducing
+                </span>
+                <span class="inline-block bg-clip-text text-transparent bg-[radial-gradient(circle_at_0%_0%,#fff,rgba(255,255,255,0.45)_30%,rgba(184,90,50,0.85)_65%,rgba(0,0,0,0)_100%)]">
+                  Guru
+                </span>
+              </h1>
+
+              <p class="text-lg sm:text-xl text-[#e5e5e5] tracking-tight mb-2" style="font-family: 'Syne', system-ui; font-weight: 500;">
+                Context Engineering for AI
+              </p>
+
+              <p class="text-sm sm:text-[15px] text-[#d4d4d4] max-w-xl mb-6 leading-relaxed">
+                Transform scattered documentation, code, and specifications into
+                intelligent, searchable context that powers your AI coding
+                assistants. Stop feeding AI junk — give it structured knowledge.
+              </p>
+
+              <div class="flex flex-wrap items-center gap-3 mb-6">
+                <!-- Primary CTA -->
+                <a href="#pricing" class="group inline-flex items-center justify-center px-4 sm:px-5 py-2.5 rounded-full bg-[#fafafa] text-[#1a1a1a] text-sm font-medium tracking-tight shadow-lg shadow-black/40 border border-white/10 hover:shadow-xl hover:shadow-black/60 transform hover:-translate-y-[1px] hover:scale-[1.02] transition">
+                  <svg class="w-4 h-4 mr-2 text-[#1a1a1a]" aria-hidden="true">
+                    <use href="#icon-download"></use>
+                  </svg>
+                  Download for Desktop
+                  <span class="ml-2 text-[11px] uppercase tracking-[0.16em] text-[#4b4b4b]">
+                    Beta
+                  </span>
+                </a>
+
+                <!-- Secondary CTA -->
+                <a href="#tour" class="inline-flex items-center justify-center px-4 sm:px-5 py-2.5 rounded-full border border-[#525252] bg-[#101010]/80 text-sm text-[#fafafa] hover:bg-[#181818] hover:border-[#fafafa]/80 transform hover:-translate-y-[1px] hover:scale-[1.02] transition">
+                  <svg class="w-4 h-4 mr-2" aria-hidden="true">
+                    <use href="#icon-monitor"></use>
+                  </svg>
+                  Explore product tour
+                </a>
+              </div>
+
+              <div class="flex flex-wrap gap-4 text-xs text-[#a6a6a6]">
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex w-1.5 h-1.5 rounded-full bg-[#b85a32]"></span>
+                  <span>
+                    Context is the new code — manage it intelligently.
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <svg class="w-3.5 h-3.5" aria-hidden="true">
+                    <use href="#icon-lock"></use>
+                  </svg>
+                  <span>Local-first, privacy-focused, developer-owned.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- (Hero visual removed from here; moved below stats as requested) -->
+          </div>
+
+          <!-- stat bar below hero -->
+          <div class="mt-4 sm:mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <div class="rounded-2xl border border-[#383838]/80 bg-[#101010]/70 px-3 py-3 flex flex-col gap-1">
+              <span class="text-[11px] uppercase tracking-[0.18em] text-[#a6a6a6]">
+                Context saved
+              </span>
+              <div class="flex items-baseline gap-1">
+                <span class="text-lg font-semibold tracking-tight" style="font-family: 'Syne', system-ui;">
+                  12h+
+                </span>
+                <span class="text-[11px] text-[#a6a6a6]">/week</span>
+              </div>
+            </div>
+            <div class="rounded-2xl border border-[#383838]/80 bg-[#101010]/70 px-3 py-3 flex flex-col gap-1">
+              <span class="text-[11px] uppercase tracking-[0.18em] text-[#a6a6a6]">
+                Context switching
+              </span>
+              <div class="flex items-baseline gap-1">
+                <span class="text-lg font-semibold tracking-tight" style="font-family: 'Syne', system-ui;">
+                  -48%
+                </span>
+              </div>
+            </div>
+            <div class="rounded-2xl border border-[#383838]/80 bg-[#101010]/70 px-3 py-3 flex flex-col gap-1">
+              <span class="text-[11px] uppercase tracking-[0.18em] text-[#a6a6a6]">
+                AI quality
+              </span>
+              <div class="flex items-baseline gap-1">
+                <span class="text-lg font-semibold tracking-tight" style="font-family: 'Syne', system-ui;">
+                  +37%
+                </span>
+              </div>
+            </div>
+            <div class="rounded-2xl border border-[#383838]/80 bg-[#101010]/70 px-3 py-3 flex flex-col gap-1">
+              <span class="text-[11px] uppercase tracking-[0.18em] text-[#a6a6a6]">
+                Projects
+              </span>
+              <div class="flex items-baseline gap-1">
+                <span class="text-lg font-semibold tracking-tight" style="font-family: 'Syne', system-ui;">
+                  ∞
+                </span>
+                <span class="text-[11px] text-[#a6a6a6]">multi-project</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hero visual: app mock (moved under stats, scaled on mobile) -->
+          <div class="mt-8">
+            <div class="relative">
+              <div class="absolute -inset-6 rounded-[32px] bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,0.12),transparent_55%),radial-gradient(circle_at_100%_100%,rgba(184,90,50,0.2),transparent_50%)] opacity-80 blur-3xl"></div>
+
+              <!-- Wrapper to scale down on small screens -->
+              <div class="relative origin-top transform scale-[0.9] -mx-3 sm:scale-100 sm:mx-0">
+                <div class="rounded-[26px] border border-white/5 bg-[#141414]/80 backdrop-blur-[24px] shadow-[0_40px_120px_rgba(0,0,0,0.85)] overflow-hidden">
+                  <!-- window chrome -->
+                  <div class="flex items-center justify-between px-4 py-2 border-b border-[#383838]/70 bg-gradient-to-r from-[#141414]/70 via-[#141414]/40 to-[#141414]/80">
+                    <div class="flex items-center gap-2">
+                      <span class="w-2.5 h-2.5 rounded-full bg-[#ef4444]/80"></span>
+                      <span class="w-2.5 h-2.5 rounded-full bg-[#eab308]/80"></span>
+                      <span class="w-2.5 h-2.5 rounded-full bg-[#22c55e]/80"></span>
+                    </div>
+                    <div class="flex items-center gap-2 text-[11px] text-[#a6a6a6]">
+                      <svg class="w-3.5 h-3.5" aria-hidden="true">
+                        <use href="#icon-monitor"></use>
+                      </svg>
+                      <span>Guru • Symbol Graph</span>
+                    </div>
+                    <div class="w-16"></div>
+                  </div>
+
+                  <div class="grid grid-cols-[220px,minmax(0,1fr)] min-h-[260px]">
+                    <!-- left nav inside mock -->
+                    <div class="border-r border-[#383838]/70 bg-[#101010]/80">
+                      <div class="px-3 py-3 border-b border-[#383838]/70 flex items-center justify-between">
+                        <span class="text-[11px] uppercase tracking-[0.16em] text-[#a6a6a6]">
+                          Projects
+                        </span>
+                        <button class="inline-flex items-center justify-center w-5 h-5 rounded-lg border border-[#383838] text-[#fafafa]/80 text-[16px] hover:bg-[#1f2933] hover:border-[#fafafa]/70 transition">
+                          +
+                        </button>
+                      </div>
+
+                      <div class="py-2 text-xs">
+                        <button class="group flex w-full items-center gap-2 px-3 py-1.5 text-left bg-[#242424]/80 text-[#fafafa] border-l-2 border-[#b85a32]">
+                          <span class="w-1 h-5 rounded-full bg-[#b85a32]/80"></span>
+                          <div class="flex flex-col">
+                            <span class="text-[11px] uppercase tracking-[0.18em] text-[#a6a6a6]">
+                              Active
+                            </span>
+                            <span class="text-[13px]">Guru Desktop</span>
+                          </div>
+                        </button>
+                        <button class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[#a6a6a6] hover:bg-[#181818] transition">
+                          <span class="w-1 h-5 rounded-full bg-transparent"></span>
+                          <span class="text-[13px]">Payments Service</span>
+                        </button>
+                        <button class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[#a6a6a6] hover:bg-[#181818] transition">
+                          <span class="w-1 h-5 rounded-full bg-transparent"></span>
+                          <span class="text-[13px]">Search Indexer</span>
+                        </button>
+                      </div>
+
+                      <div class="mt-2 border-t border-[#383838]/70 pt-2 px-3 pb-3">
+                        <p class="text-[11px] uppercase tracking-[0.18em] text-[#a6a6a6] mb-2">
+                          Context tree
+                        </p>
+                        <div class="space-y-1 text-xs text-[#d4d4d4]">
+                          <button class="flex items-center gap-2 w-full text-left hover:bg-[#181818] rounded-md px-1.5 py-1 transition">
+                            <span class="text-[10px] text-[#737373]">▾</span>
+                            <svg class="w-3.5 h-3.5 text-[#a6a6a6]" aria-hidden="true">
+                              <use href="#icon-database"></use>
+                            </svg>
+                            <span>Knowledge Base</span>
+                          </button>
+                          <button class="flex items-center gap-2 w-full text-left pl-6 hover:bg-[#181818] rounded-md px-1.5 py-1 transition">
+                            <svg class="w-3.5 h-3.5 text-[#a6a6a6]" aria-hidden="true">
+                              <use href="#icon-file-code"></use>
+                            </svg>
+                            <span>Architecture Overview.md</span>
+                          </button>
+                          <button class="flex items-center gap-2 w-full text-left pl-6 hover:bg-[#181818] rounded-md px-1.5 py-1 transition">
+                            <svg class="w-3.5 h-3.5 text-[#a6a6a6]" aria-hidden="true">
+                              <use href="#icon-file-code"></use>
+                            </svg>
+                            <span>Prompt Patterns.md</span>
+                          </button>
+                          <button class="flex items-center gap-2 w-full text-left hover:bg-[#181818] rounded-md px-1.5 py-1 transition">
+                            <span class="text-[10px] text-[#737373]">▾</span>
+                            <svg class="w-3.5 h-3.5 text-[#a6a6a6]" aria-hidden="true">
+                              <use href="#icon-network"></use>
+                            </svg>
+                            <span>Symbol Graph</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- right pane: symbol graph visualization -->
+                    <div class="relative bg-gradient-to-br from-[#101010] via-[#141414] to-[#050505]">
+                      <div class="absolute inset-0 opacity-40 mix-blend-soft-light" style="background-image: linear-gradient(to bottom, rgba(248,250,252,0.04) 1px, transparent 1px), linear-gradient(to right, rgba(248,250,252,0.04) 1px, transparent 1px); background-size: 16px 16px;"></div>
+
+                      <div class="relative h-full p-4 sm:p-5 flex flex-col gap-4">
+                        <div class="flex items-center justify-between gap-3">
+                          <div class="flex items-center gap-2 text-xs text-[#a6a6a6]">
+                            <svg class="w-4 h-4" aria-hidden="true">
+                              <use href="#icon-git-branch"></use>
+                            </svg>
+                            <span>Symbol Graph</span>
+                          </div>
+                          <div class="flex items-center gap-1.5">
+                            <button class="inline-flex items-center justify-center w-6 h-6 rounded-lg border border-[#383838] text-[#a6a6a6] hover:bg-[#181818] hover:text-[#fafafa] transition text-[11px]">
+                              –
+                            </button>
+                            <button class="inline-flex items-center justify-center w-6 h-6 rounded-lg border border-[#383838] text-[#a6a6a6] hover:bg-[#181818] hover:text-[#fafafa] transition text-[11px]">
+                              +
+                            </button>
+                            <button class="inline-flex items-center justify-center w-6 h-6 rounded-lg border border-[#383838] text-[#a6a6a6] hover:bg-[#181818] hover:text-[#fafafa] transition">
+                              <svg class="w-3.5 h-3.5" aria-hidden="true">
+                                <use href="#icon-activity"></use>
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+
+                        <!-- nodes -->
+                        <div class="relative flex-1">
+                          <div class="absolute left-6 top-10">
+                            <div class="group flex flex-col items-center">
+                              <div class="relative">
+                                <div class="absolute inset-0 rounded-xl bg-[#b85a32]/50 blur-xl opacity-60"></div>
+                                <div class="relative flex items-center justify-center w-16 h-16 rounded-xl bg-[#141414] border border-[#b85a32]/70 shadow-lg shadow-black/60">
+                                  <svg class="w-7 h-7 text-[#b85a32]" aria-hidden="true">
+                                    <use href="#icon-database"></use>
+                                  </svg>
+                                </div>
+                              </div>
+                              <span class="mt-2 text-[11px] text-[#d4d4d4]">
+                                Knowledge Base
+                              </span>
+                            </div>
+                          </div>
+
+                          <div class="absolute left-40 top-4">
+                            <div class="group flex flex-col items-center">
+                              <div class="flex items-center justify-center w-14 h-14 rounded-xl bg-[#141414] border border-[#383838]/80 hover:border-[#fafafa]/60 transition">
+                                <svg class="w-6 h-6 text-[#e5e5e5]" aria-hidden="true">
+                                  <use href="#icon-file-code"></use>
+                                </svg>
+                              </div>
+                              <span class="mt-1 text-[11px] text-[#a6a6a6]">
+                                Specs
+                              </span>
+                            </div>
+                          </div>
+
+                          <div class="absolute left-40 top-28">
+                            <div class="group flex flex-col items-center">
+                              <div class="flex items-center justify-center w-14 h-14 rounded-xl bg-[#141414] border border-[#383838]/80 hover:border-[#fafafa]/60 transition">
+                                <svg class="w-6 h-6 text-[#e5e5e5]" aria-hidden="true">
+                                  <use href="#icon-terminal"></use>
+                                </svg>
+                              </div>
+                              <span class="mt-1 text-[11px] text-[#a6a6a6]">
+                                Prompt Templates
+                              </span>
+                            </div>
+                          </div>
+
+                          <div class="absolute right-10 top-16">
+                            <div class="group flex flex-col items-center">
+                              <div class="relative">
+                                <div class="absolute inset-0 rounded-xl bg-[#22c55e]/40 blur-xl opacity-60"></div>
+                                <div class="relative flex items-center justify-center w-16 h-16 rounded-xl bg-[#141414] border border-[#22c55e]/60 shadow-lg shadow-black/60">
+                                  <svg class="w-7 h-7 text-[#bbf7d0]" aria-hidden="true">
+                                    <use href="#icon-cpu"></use>
+                                  </svg>
+                                </div>
+                              </div>
+                              <span class="mt-2 text-[11px] text-[#d4d4d4]">
+                                AI Memory
+                              </span>
+                            </div>
+                          </div>
+
+                          <div class="absolute right-4 bottom-6">
+                            <div class="group flex flex-col items-end">
+                              <div class="flex items-center justify-center w-14 h-14 rounded-xl bg-[#141414] border border-[#383838]/80 hover:border-[#fafafa]/60 transition">
+                                <svg class="w-6 h-6 text-[#e5e5e5]" aria-hidden="true">
+                                  <use href="#icon-terminal"></use>
+                                </svg>
+                              </div>
+                              <span class="mt-1 text-[11px] text-[#a6a6a6]">
+                                MCP Server
+                              </span>
+                            </div>
+                          </div>
+
+                          <!-- edges -->
+                          <svg class="absolute inset-0 pointer-events-none" viewBox="0 0 320 200">
+                            <defs>
+                              <linearGradient id="edge-grad-1" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#b85a32" stop-opacity="0.1"></stop>
+                                <stop offset="50%" stop-color="#b85a32" stop-opacity="0.7"></stop>
+                                <stop offset="100%" stop-color="#b85a32" stop-opacity="0.05"></stop>
+                              </linearGradient>
+                              <linearGradient id="edge-grad-2" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#22c55e" stop-opacity="0.1"></stop>
+                                <stop offset="50%" stop-color="#22c55e" stop-opacity="0.7"></stop>
+                                <stop offset="100%" stop-color="#22c55e" stop-opacity="0.05"></stop>
+                              </linearGradient>
+                            </defs>
+                            <path d="M40 60 C 120 20, 220 30, 260 80" stroke="url(#edge-grad-1)" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-dasharray="2 4"></path>
+                            <path d="M40 60 C 120 80, 220 100, 280 140" stroke="url(#edge-grad-2)" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-dasharray="2 4"></path>
+                            <path d="M100 30 C 180 40, 220 60, 260 80" stroke="#4b5563" stroke-width="0.8" fill="none" stroke-linecap="round" stroke-dasharray="1 6"></path>
+                            <path d="M100 120 C 190 130, 230 130, 280 140" stroke="#4b5563" stroke-width="0.8" fill="none" stroke-linecap="round" stroke-dasharray="1 6"></path>
+                          </svg>
+                        </div>
+
+                        <!-- bottom bar: stats -->
+                        <div class="rounded-2xl border border-[#383838]/80 bg-black/30 px-3 py-2.5 flex items-center justify-between gap-2 text-[11px] text-[#a6a6a6]">
+                          <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-1.5">
+                              <svg class="w-3.5 h-3.5 text-[#e5e5e5]" aria-hidden="true">
+                                <use href="#icon-database"></use>
+                              </svg>
+                              <span>1,284 nodes</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                              <svg class="w-3.5 h-3.5 text-[#22c55e]" aria-hidden="true">
+                                <use href="#icon-brain-circuit"></use>
+                              </svg>
+                              <span>Memory coverage: 92%</span>
+                            </div>
+                          </div>
+                          <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-1.5">
+                              <svg class="w-3.5 h-3.5 text-[#eab308]" aria-hidden="true">
+                                <use href="#icon-activity"></use>
+                              </svg>
+                              <span>Tokens / session</span>
+                              <span class="text-[#e5e5e5] font-medium">
+                                38.4k
+                              </span>
+                            </div>
+                            <span class="hidden sm:inline-block h-3 w-px bg-[#383838]"></span>
+                            <div class="hidden sm:flex items-center gap-1.5">
+                              <svg class="w-3.5 h-3.5 text-[#38bdf8]" aria-hidden="true">
+                                <use href="#icon-pie-chart"></use>
+                              </svg>
+                              <span>Est. cost</span>
+                              <span class="text-[#e5e5e5] font-medium">
+                                $0.42
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>  
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Feature grid -->
+        <section id="features" class="mb-16 lg:mb-20">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h2 class="text-xl sm:text-2xl font-semibold tracking-tight mb-1" style="font-family: 'Syne', system-ui;">
+                Engineered context, not ad-hoc prompts
+              </h2>
+              <p class="text-sm text-[#a6a6a6] max-w-xl">
+                Guru orchestrates knowledge bases, symbol graphs, prompts, and
+                specifications into a coherent, queryable context layer for your
+                AI coding assistants.
+              </p>
+            </div>
+            <div class="hidden sm:flex items-center gap-2 text-[11px] text-[#a6a6a6]">
+              <svg class="w-3.5 h-3.5" aria-hidden="true">
+                <use href="#icon-shield-check"></use>
+              </svg>
+              <span>Local-first. No cloud indexing.</span>
+            </div>
+          </div>
+
+          <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Knowledge Base Management -->
+            <article class="group rounded-2xl border border-[#383838]/80 bg-[#101010]/70 backdrop-blur-xl p-4 flex flex-col gap-3 hover:border-[#fafafa]/70 hover:bg-[#141414]/90 transform hover:-translate-y-[1px] hover:scale-[1.01] transition">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-[#181818] border border-[#383838]">
+                    <svg class="w-4 h-4 text-[#fafafa]" aria-hidden="true">
+                      <use href="#icon-database"></use>
+                    </svg>
+                  </div>
+                  <h3 class="text-sm font-semibold tracking-tight" style="font-family: 'Syne', system-ui;">
+                    Knowledge Base Management
+                  </h3>
+                </div>
+                <span class="text-[10px] uppercase tracking-[0.16em] text-[#a6a6a6]">
+                  Semantic
+                </span>
+              </div>
+              <p class="text-xs text-[#a6a6a6]">
+                Organize docs, specs, and code patterns into collections with
+                semantic search, tags, and per-project scopes that your AI can
+                reliably query.
+              </p>
+              <div class="mt-1 flex items-center justify-between text-[11px] text-[#a6a6a6]">
+                <span>Vector search • Snippet pinning</span>
+                <span class="text-[#e5e5e5]">01</span>
+              </div>
+            </article>
+
+            <!-- Symbol Graph Visualization -->
+            <article class="group rounded-2xl border border-[#383838]/80 bg-[#101010]/70 backdrop-blur-xl p-4 flex flex-col gap-3 hover:border-[#fafafa]/70 hover:bg-[#141414]/90 transform hover:-translate-y-[1px] hover:scale-[1.01] transition">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-[#181818] border border-[#383838]">
+                    <svg class="w-4 h-4 text-[#fafafa]" aria-hidden="true">
+                      <use href="#icon-network"></use>
+                    </svg>
+                  </div>
+                  <h3 class="text-sm font-semibold tracking-tight" style="font-family: 'Syne', system-ui;">
+                    Symbol Graph Visualization
+                  </h3>
+                </div>
+                <span class="text-[10px] uppercase tracking-[0.16em] text-[#a6a6a6]">
+                  Code graph
+                </span>
+              </div>
+              <p class="text-xs text-[#a6a6a6]">
+                Parse repositories into a navigable symbol graph that reveals
+                dependencies, call chains, and hotspots your AI can traverse.
+              </p>
+              <div class="mt-1 flex items-center justify-between text-[11px] text-[#a6a6a6]">
+                <span>Functions • Types • Flows</span>
+                <span class="text-[#e5e5e5]">02</span>
+              </div>
+            </article>
+
+            <!-- AI Memory System -->
+            <article class="group rounded-2xl border border-[#383838]/80 bg-[#101010]/70 backdrop-blur-xl p-4 flex flex-col gap-3 hover:border-[#fafafa]/70 hover:bg-[#141414]/90 transform hover:-translate-y-[1px] hover:scale-[1.01] transition">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-[#181818] border border-[#383838]">
+                    <svg class="w-4 h-4 text-[#fafafa]" aria-hidden="true">
+                      <use href="#icon-brain-circuit"></use>
+                    </svg>
+                  </div>
+                  <h3 class="text-sm font-semibold tracking-tight" style="font-family: 'Syne', system-ui;">
+                    AI Memory System
+                  </h3>
+                </div>
+                <span class="text-[10px] uppercase tracking-[0.16em] text-[#a6a6a6]">
+                  Adaptive
+                </span>
+              </div>
+              <p class="text-xs text-[#a6a6a6]">
+                An adaptive memory engine observes your workflows, surfaces
+                patterns, and proposes context bundles optimized for your AI
+                calls.
+              </p>
+              <div class="mt-1 flex items-center justify-between text-[11px] text-[#a6a6a6]">
+                <span>Active recall • Insights</span>
+                <span class="text-[#e5e5e5]">03</span>
+              </div>
+            </article>
+
+            <!-- Prompt Template Engine -->
+            <article class="group rounded-2xl border border-[#383838]/80 bg-[#101010]/70 backdrop-blur-xl p-4 flex flex-col gap-3 hover:border-[#fafafa]/70 hover:bg-[#141414]/90 transform hover:-translate-y-[1px] hover:scale-[1.01] transition">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-[#181818] border border-[#383838]">
+                    <svg class="w-4 h-4 text-[#fafafa]" aria-hidden="true">
+                      <use href="#icon-terminal"></use>
+                    </svg>
+                  </div>
+                  <h3 class="text-sm font-semibold tracking-tight" style="font-family: 'Syne', system-ui;">
+                    Prompt Template Engine
+                  </h3>
+                </div>
+                <span class="text-[10px] uppercase tracking-[0.16em] text-[#a6a6a6]">
+                  Reusable
+                </span>
+              </div>
+              <p class="text-xs text-[#a6a6a6]">
+                Define reusable prompt templates with variables, versions, and
+                context slots that map directly to your knowledge graph.
+              </p>
+              <div class="mt-1 flex items-center justify-between text-[11px] text-[#a6a6a6]">
+                <span>Variables • Versioning</span>
+                <span class="text-[#e5e5e5]">04</span>
+              </div>
+            </article>
+
+            <!-- Specifications -->
+            <article class="group rounded-2xl border border-[#383838]/80 bg-[#101010]/70 backdrop-blur-xl p-4 flex flex-col gap-3 hover:border-[#fafafa]/70 hover:bg-[#141414]/90 transform hover:-translate-y-[1px] hover:scale-[1.01] transition">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-[#181818] border border-[#383838]">
+                    <svg class="w-4 h-4 text-[#fafafa]" aria-hidden="true">
+                      <use href="#icon-file-code"></use>
+                    </svg>
+                  </div>
+                  <h3 class="text-sm font-semibold tracking-tight" style="font-family: 'Syne', system-ui;">
+                    Specifications
+                  </h3>
+                </div>
+                <span class="text-[10px] uppercase tracking-[0.16em] text-[#a6a6a6]">
+                  Contracts
+                </span>
+              </div>
+              <p class="text-xs text-[#a6a6a6]">
+                Encode project-specific rules, constraints, and style guides
+                into machine-readable specs that shape every AI request.
+              </p>
+              <div class="mt-1 flex items-center justify-between text-[11px] text-[#a6a6a6]">
+                <span>Context rules • Policies</span>
+                <span class="text-[#e5e5e5]">05</span>
+              </div>
+            </article>
+
+            <!-- MCP Integration -->
+            <article class="group rounded-2xl border border-[#383838]/80 bg-[#101010]/70 backdrop-blur-xl p-4 flex flex-col gap-3 hover:border-[#fafafa]/70 hover:bg-[#141414]/90 transform hover:-translate-y-[1px] hover:scale-[1.01] transition">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-[#181818] border border-[#383838]">
+                    <svg class="w-4 h-4 text-[#fafafa]" aria-hidden="true">
+                      <use href="#icon-cable"></use>
+                    </svg>
+                  </div>
+                  <h3 class="text-sm font-semibold tracking-tight" style="font-family: 'Syne', system-ui;">
+                    MCP Server Integration
+                  </h3>
+                </div>
+                <span class="text-[10px] uppercase tracking-[0.16em] text-[#a6a6a6]">
+                  Native
+                </span>
+              </div>
+              <p class="text-xs text-[#a6a6a6]">
+                Expose Guru’s knowledge graph via Model Context Protocol to
+                Claude Desktop and other tools — no brittle copy-paste loops.
+              </p>
+              <div class="mt-1 flex items-center justify-between text-[11px] text-[#a6a6a6]">
+                <span>Streams • Tools • Queries</span>
+                <span class="text-[#e5e5e5]">06</span>
+              </div>
+            </article>
+
+            <!-- Local-first & Multi-project -->
+            <article class="group rounded-2xl border border-[#383838]/80 bg-[#101010]/70 backdrop-blur-xl p-4 flex flex-col gap-3 hover:border-[#fafafa]/70 hover:bg-[#141414]/90 transform hover:-translate-y-[1px] hover:scale-[.01] transition">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-[#181818] border border-[#383838]">
+                    <svg class="w-4 h-4 text-[#fafafa]" aria-hidden="true">
+                      <use href="#icon-lock"></use>
+                    </svg>
+                  </div>
+                  <h3 class="text-sm font-semibold tracking-tight" style="font-family: 'Syne', system-ui;">
+                    Local-first Architecture
+                  </h3>
+                </div>
+                <span class="text-[10px] uppercase tracking-[0.16em] text-[#a6a6a6]">
+                  Private
+                </span>
+              </div>
+              <p class="text-xs text-[#a6a6a6]">
+                Everything stays on your machine: indexes, embeddings, graphs.
+                No vendor lock-in, no background uploads.
+              </p>
+              <div class="mt-1 flex items-center justify-between text-[11px] text-[#a6a6a6]">
+                <span>Offline • Encrypted</span>
+                <span class="text-[#e5e5e5]">07</span>
+              </div>
+            </article>
+
+            <!-- Tokens & Cost -->
+            <article class="group rounded-2xl border border-[#383838]/80 bg-[#101010]/70 backdrop-blur-xl p-4 flex flex-col gap-3 hover:border-[#fafafa]/70 hover:bg-[#141414]/90 transform hover:-translate-y-[1px] hover:scale-[1.01] transition">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-[#181818] border border-[#383838]">
+                    <svg class="w-4 h-4 text-[#fafafa]" aria-hidden="true">
+                      <use href="#icon-activity"></use>
+                    </svg>
+                  </div>
+                  <h3 class="text-sm font-semibold tracking-tight" style="font-family: 'Syne', system-ui;">
+                    Token Estimation &amp; Cost
+                  </h3>
+                </div>
+                <span class="text-[10px] uppercase tracking-[0.16em] text-[#a6a6a6]">
+                  Aware
+                </span>
+              </div>
+              <p class="text-xs text-[#a6a6a6]">
+                Estimate tokens and cost per request before you send it. See
+                which context chunks are expensive and trim with intent.
+              </p>
+              <div class="mt-1 flex items-center justify-between text-[11px] text-[#a6a6a6]">
+                <span>Per-call • Per-session</span>
+                <span class="text-[#e5e5e5]">08</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <!-- How it works / workflow visualization -->
+        <section class="mb-16 lg:mb-20">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h2 class="text-xl sm:text-2xl font-semibold tracking-tight mb-1" style="font-family: 'Syne', system-ui;">
+                From chaos to coherent context
+              </h2>
+              <p class="text-sm text-[#a6a6a6] max-w-xl">
+                Guru sits between your repos, docs, and AI assistants —
+                transforming raw assets into structured context pipelines.
+              </p>
+            </div>
+          </div>
+
+          <div class="rounded-[26px] border border-[#383838]/80 bg-[#101010]/80 backdrop-blur-2xl p-5 sm:p-6 lg:p-7 shadow-[0_24px_80px_rgba(0,0,0,0.85)]">
+            <div class="grid lg:grid-cols-3 gap-6 lg:gap-7 items-start">
+              <!-- Column 1: Inputs -->
+              <div class="space-y-4">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="inline-flex w-1.5 h-1.5 rounded-full bg-[#b85a32]"></span>
+                  <span class="text-[11px] uppercase tracking-[0.18em] text-[#a6a6a6]">
+                    Inputs
+                  </span>
+                </div>
+                <h3 class="text-sm font-semibold tracking-tight mb-2" style="font-family: 'Syne', system-ui;">
+                  1. Ingest your reality
+                </h3>
+                <p class="text-xs text-[#a6a6a6] mb-3">
+                  Point Guru at your codebase, docs, ADRs, runbooks, and design
+                  specs. Everything is parsed and indexed locally.
+                </p>
+
+                <div class="space-y-2">
+                  <div class="flex items-center justify-between rounded-xl border border-[#383838]/80 bg-[#141414] px-3 py-2 text-xs">
+                    <div class="flex items-center gap-2">
+                      <svg class="w-3.5 h-3.5 text-[#fafafa]" aria-hidden="true">
+                        <use href="#icon-code-2"></use>
+                      </svg>
+                      <span>Monorepo /services</span>
+                    </div>
+                    <span class="text-[10px] text-[#a6a6a6]">Git</span>
+                  </div>
+                  <div class="flex items-center justify-between rounded-xl border border-[#383838]/80 bg-[#141414] px-3 py-2 text-xs">
+                    <div class="flex items-center gap-2">
+                      <svg class="w-3.5 h-3.5 text-[#fafafa]" aria-hidden="true">
+                        <use href="#icon-file-code"></use>
+                      </svg>
+                      <span>Architecture Docs</span>
+                    </div>
+                    <span class="text-[10px] text-[#a6a6a6]">Markdown</span>
+                  </div>
+                  <div class="flex items-center justify-between rounded-xl border border-[#383838]/80 bg-[#141414] px-3 py-2 text-xs">
+                    <div class="flex items-center gap-2">
+                      <svg class="w-3.5 h-3.5 text-[#fafafa]" aria-hidden="true">
+                        <use href="#icon-boxes"></use>
+                      </svg>
+                      <span>API Specs &amp; Schemas</span>
+                    </div>
+                    <span class="text-[10px] text-[#a6a6a6]">OpenAPI</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Column 2: Orchestration -->
+              <div class="space-y-4">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="inline-flex w-1.5 h-1.5 rounded-full bg-[#22c55e]"></span>
+                  <span class="text-[11px] uppercase tracking-[0.18em] text-[#a6a6a6]">
+                    Orchestration
+                  </span>
+                </div>
+                <h3 class="text-sm font-semibold tracking-tight mb-2" style="font-family: 'Syne', system-ui;">
+                  2. Engineer the context
+                </h3>
+                <p class="text-xs text-[#a6a6a6] mb-3">
+                  Guru correlates symbols, documents, and prompts into context
+                  bundles that match your AI tasks — refactors, reviews,
+                  migrations, and more.
+                </p>
+
+                <div class="rounded-2xl border border-[#383838]/80 bg-[#141414]/90 px-3 py-3 text-xs space-y-2">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-[11px] uppercase tracking-[0.16em] text-[#a6a6a6]">
+                      Context Bundle
+                    </span>
+                    <span class="text-[10px] text-[#e5e5e5]">
+                      Refactor: billing service
+                    </span>
+                  </div>
+                  <div class="flex items-center justify-between text-[11px] text-[#a6a6a6]">
+                    <span>Docs</span>
+                    <span class="text-[#e5e5e5]">3</span>
+                  </div>
+                  <div class="flex items-center justify-between text-[11px] text-[#a6a6a6]">
+                    <span>Symbols</span>
+                    <span class="text-[#e5e5e5]">42</span>
+                  </div>
+                  <div class="flex items-center justify-between text-[11px] text-[#a6a6a6]">
+                    <span>Specs</span>
+                    <span class="text-[#e5e5e5]">2</span>
+                  </div>
+                  <div class="flex items-center justify-between text-[11px] text-[#a6a6a6]">
+                    <span>Prompt template</span>
+                    <span class="text-[#e5e5e5]">review_refactor_v3</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Column 3: Output -->
+              <div class="space-y-4">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="inline-flex w-1.5 h-1.5 rounded-full bg-[#38bdf8]"></span>
+                  <span class="text-[11px] uppercase tracking-[0.18em] text-[#a6a6a6]">
+                    Output
+                  </span>
+                </div>
+                </div></div></div></section></div></>

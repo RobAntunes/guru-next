@@ -11,21 +11,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Plus,
   FileText,
-  GitBranch,
-  Database,
-  Settings,
-  Target,
-  Shield,
   Edit,
   Save,
   X,
   Lock,
-  Unlock,
-  Code,
-  ChevronRight,
-  AlertCircle
+  Trash2,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
-import { specStorage, Spec, SpecField, SpecTemplate } from '../services/spec-storage';
+import { specStorage, Spec, SpecField, SpecTemplate, SpecSection, getBaseSections } from '../services/spec-storage';
 import { projectStorage, Project } from '../services/project-storage';
 
 interface SpecManagementProps {
@@ -38,9 +32,9 @@ export const SpecManagement: React.FC<SpecManagementProps> = ({ onSpecToggle }) 
   const [editingSpec, setEditingSpec] = useState<Spec | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<SpecTemplate | null>(null);
-  const [activeCategory, setActiveCategory] = useState<Spec['category']>('api');
   const [formValues, setFormValues] = useState<Record<string, any>>({});
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadCurrentProject();
@@ -52,12 +46,11 @@ export const SpecManagement: React.FC<SpecManagementProps> = ({ onSpecToggle }) 
     }
   }, [currentProject]);
 
-  // Listen for project changes
   useEffect(() => {
     const handleProjectSwitch = () => {
       loadCurrentProject();
     };
-    
+
     window.addEventListener('project-switched', handleProjectSwitch);
     return () => {
       window.removeEventListener('project-switched', handleProjectSwitch);
@@ -75,42 +68,30 @@ export const SpecManagement: React.FC<SpecManagementProps> = ({ onSpecToggle }) 
 
   const loadSpecs = async () => {
     if (!currentProject) return;
-    
+
     const loadedSpecs = await specStorage.getSpecsByProject(currentProject.id);
     setSpecs(loadedSpecs);
-  };
-
-  const getCategoryIcon = (category: Spec['category']) => {
-    switch (category) {
-      case 'api': return <Database className="h-4 w-4" />;
-      case 'business': return <Shield className="h-4 w-4" />;
-      case 'architecture': return <GitBranch className="h-4 w-4" />;
-      case 'workflow': return <Settings className="h-4 w-4" />;
-      case 'constraints': return <AlertCircle className="h-4 w-4" />;
-      case 'goals': return <Target className="h-4 w-4" />;
-      default: return <FileText className="h-4 w-4" />;
-    }
   };
 
   const handleCreateSpec = async () => {
     if (!selectedTemplate) return;
 
     const newSpec = await specStorage.createSpec({
-      category: selectedTemplate.category,
-      type: selectedTemplate.id,
       name: formValues.name || 'New ' + selectedTemplate.name,
       description: formValues.description || selectedTemplate.description,
       version: '1.0.0',
       status: 'draft',
       immutable: false,
-      fields: selectedTemplate.fields,
-      values: formValues
+      sections: selectedTemplate.sections,
+      values: formValues,
+      projectId: currentProject!.id
     });
 
     setSpecs([...specs, newSpec]);
     setShowCreateDialog(false);
     setSelectedTemplate(null);
     setFormValues({});
+    setSelectedSpec(newSpec);
   };
 
   const handleUpdateSpec = async () => {
@@ -131,9 +112,29 @@ export const SpecManagement: React.FC<SpecManagementProps> = ({ onSpecToggle }) 
     }
   };
 
+  const handleDeleteSpec = async (specId: string) => {
+    if (confirm('Are you sure you want to delete this spec?')) {
+      await specStorage.deleteSpec(specId);
+      setSpecs(specs.filter(s => s.id !== specId));
+      if (selectedSpec?.id === specId) {
+        setSelectedSpec(null);
+      }
+    }
+  };
+
   const handleMakeImmutable = async (specId: string) => {
     await specStorage.makeSpecImmutable(specId);
     await loadSpecs();
+  };
+
+  const toggleSection = (sectionId: string) => {
+    const newExpanded = new Set(expandedSections);
+    if (newExpanded.has(sectionId)) {
+      newExpanded.delete(sectionId);
+    } else {
+      newExpanded.add(sectionId);
+    }
+    setExpandedSections(newExpanded);
   };
 
   const renderFieldInput = (field: SpecField) => {
@@ -230,7 +231,8 @@ export const SpecManagement: React.FC<SpecManagementProps> = ({ onSpecToggle }) 
             onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })}
             placeholder={field.placeholder}
             required={field.required}
-            rows={4}
+            rows={8}
+            className="font-mono text-sm"
           />
         );
 
@@ -239,67 +241,57 @@ export const SpecManagement: React.FC<SpecManagementProps> = ({ onSpecToggle }) 
     }
   };
 
-  const specsInCategory = specs.filter(spec => spec.category === activeCategory);
-
   return (
     <div className="space-y-4 h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-medium">Core Specifications</h3>
+          <h3 className="text-sm font-medium">Specifications</h3>
           <p className="text-xs text-muted-foreground mt-1">
-            Structured knowledge that defines system behavior and constraints
+            Structured knowledge defining system behavior and constraints
           </p>
         </div>
         <Button
           size="sm"
           onClick={() => setShowCreateDialog(true)}
           className="h-7 text-xs"
+          style={{ backgroundColor: 'hsl(var(--primary))' }}
         >
           <Plus className="h-3 w-3 mr-1" />
           New Spec
         </Button>
       </div>
 
-      {/* Category Tabs */}
-      <Tabs value={activeCategory} onValueChange={(v) => setActiveCategory(v as any)}>
-        <TabsList className="grid w-full grid-cols-6 gap-1">
-          <TabsTrigger value="api" className="data-[state=active]:!bg-background data-[state=inactive]:!bg-neutral-800">APIs</TabsTrigger>
-          <TabsTrigger value="business" className="data-[state=active]:!bg-background data-[state=inactive]:!bg-neutral-800">Business</TabsTrigger>
-          <TabsTrigger value="architecture" className="data-[state=active]:!bg-background data-[state=inactive]:!bg-neutral-800">Architecture</TabsTrigger>
-          <TabsTrigger value="workflow" className="data-[state=active]:!bg-background data-[state=inactive]:!bg-neutral-800">Workflow</TabsTrigger>
-          <TabsTrigger value="constraints" className="data-[state=active]:!bg-background data-[state=inactive]:!bg-neutral-800">Constraints</TabsTrigger>
-          <TabsTrigger value="goals" className="data-[state=active]:!bg-background data-[state=inactive]:!bg-neutral-800">Goals</TabsTrigger>
-        </TabsList>
-      </Tabs>
-
       {/* Content Area */}
       <div className="flex-1 overflow-hidden flex gap-4">
         {/* Spec List */}
         <div className="w-1/3 overflow-y-auto space-y-2">
-          {specsInCategory.length === 0 ? (
-            <Card className="border-dashed">
+          {specs.length === 0 ? (
+            <Card className="border-dashed border-border">
               <CardContent className="p-4 text-center text-sm text-muted-foreground">
-                No specs in this category yet
+                No specs yet. Create your first spec to get started.
               </CardContent>
             </Card>
           ) : (
-            specsInCategory.map(spec => (
+            specs.map(spec => (
               <Card
                 key={spec.id}
                 className={`cursor-pointer transition-all ${
-                  selectedSpec?.id === spec.id ? 'ring-2 ring-primary' : ''
+                  selectedSpec?.id === spec.id ? 'ring-2' : ''
                 }`}
+                style={selectedSpec?.id === spec.id ? { borderColor: 'hsl(var(--primary))' } : {}}
                 onClick={() => {
                   setSelectedSpec(spec);
                   setEditingSpec(null);
                   setFormValues(spec.values);
+                  // Expand first section by default
+                  setExpandedSections(new Set([spec.sections[0]?.id]));
                 }}
               >
                 <CardHeader className="p-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-2">
-                      {getCategoryIcon(spec.category)}
+                      <FileText className="h-4 w-4 mt-0.5" style={{ color: 'hsl(var(--primary))' }} />
                       <div>
                         <CardTitle className="text-sm font-normal flex items-center gap-2">
                           {spec.name}
@@ -348,20 +340,30 @@ export const SpecManagement: React.FC<SpecManagementProps> = ({ onSpecToggle }) 
                       </Button>
                     )}
                     {!selectedSpec.immutable && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleMakeImmutable(selectedSpec.id)}
-                      >
-                        <Lock className="h-3 w-3 mr-1" />
-                        Lock
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleMakeImmutable(selectedSpec.id)}
+                        >
+                          <Lock className="h-3 w-3 mr-1" />
+                          Lock
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeleteSpec(selectedSpec.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </>
                     )}
                     {editingSpec && (
                       <>
                         <Button
                           size="sm"
                           onClick={handleUpdateSpec}
+                          style={{ backgroundColor: 'hsl(var(--primary))' }}
                         >
                           <Save className="h-3 w-3 mr-1" />
                           Save
@@ -382,32 +384,66 @@ export const SpecManagement: React.FC<SpecManagementProps> = ({ onSpecToggle }) 
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {selectedSpec.fields.map(field => (
-                  <div key={field.id} className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      {field.name}
-                      {field.required && <span className="text-red-500 ml-1">*</span>}
-                    </Label>
-                    {field.description && (
-                      <p className="text-xs text-muted-foreground">{field.description}</p>
-                    )}
-                    {editingSpec ? (
-                      renderFieldInput(field)
-                    ) : (
-                      <div className="p-2 bg-muted/50 rounded text-sm">
-                        {field.type === 'boolean' 
-                          ? (selectedSpec.values[field.id] ? 'Yes' : 'No')
-                          : field.type === 'multiselect'
-                          ? (selectedSpec.values[field.id] as string[])?.join(', ') || 'None'
-                          : selectedSpec.values[field.id] || <span className="text-muted-foreground">Not set</span>
-                        }
+                {selectedSpec.sections
+                  .sort((a, b) => a.order - b.order)
+                  .map(section => (
+                    <div key={section.id} className="space-y-3">
+                      {/* Section Header */}
+                      <div
+                        className="flex items-center gap-2 cursor-pointer"
+                        onClick={() => toggleSection(section.id)}
+                      >
+                        {expandedSections.has(section.id) ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <h4 className="text-sm font-semibold">{section.name}</h4>
+                        {section.isBase && (
+                          <Badge variant="outline" className="text-xs">
+                            Base
+                          </Badge>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {section.description && (
+                        <p className="text-xs text-muted-foreground pl-6">
+                          {section.description}
+                        </p>
+                      )}
+
+                      {/* Section Fields */}
+                      {expandedSections.has(section.id) && (
+                        <div className="pl-6 space-y-4 border-l-2 border-border">
+                          {section.fields.map(field => (
+                            <div key={field.id} className="space-y-2">
+                              <Label className="text-sm font-medium">
+                                {field.name}
+                                {field.required && <span className="text-red-500 ml-1">*</span>}
+                              </Label>
+                              {field.description && (
+                                <p className="text-xs text-muted-foreground">{field.description}</p>
+                              )}
+                              {editingSpec ? (
+                                renderFieldInput(field)
+                              ) : (
+                                <div className="p-2 bg-muted/50 rounded text-sm">
+                                  {field.type === 'boolean'
+                                    ? (selectedSpec.values[field.id] ? 'Yes' : 'No')
+                                    : field.type === 'multiselect'
+                                    ? (selectedSpec.values[field.id] as string[])?.join(', ') || 'None'
+                                    : selectedSpec.values[field.id] || <span className="text-muted-foreground">Not set</span>
+                                  }
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
 
                 {/* Metadata */}
-                <div className="pt-4 border-t">
+                <div className="pt-4 border-t border-border">
                   <h4 className="text-xs font-medium mb-2">Metadata</h4>
                   <div className="space-y-1 text-xs text-muted-foreground">
                     <p>Created: {new Date(selectedSpec.metadata.createdAt).toLocaleString()}</p>
@@ -418,8 +454,9 @@ export const SpecManagement: React.FC<SpecManagementProps> = ({ onSpecToggle }) 
               </CardContent>
             </Card>
           ) : (
-            <Card className="h-full flex items-center justify-center">
+            <Card className="h-full flex items-center justify-center border-dashed border-border">
               <CardContent className="text-center">
+                <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
                   Select a spec to view details
                 </p>
@@ -459,7 +496,14 @@ export const SpecManagement: React.FC<SpecManagementProps> = ({ onSpecToggle }) 
                     {specStorage.getTemplates().map(template => (
                       <Card
                         key={template.id}
-                        className="cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                        className="cursor-pointer hover:ring-2 transition-all"
+                        style={{ borderColor: 'transparent' }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = 'hsl(var(--primary))';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = 'transparent';
+                        }}
                         onClick={() => {
                           setSelectedTemplate(template);
                           setFormValues({});
@@ -467,12 +511,15 @@ export const SpecManagement: React.FC<SpecManagementProps> = ({ onSpecToggle }) 
                       >
                         <CardHeader className="p-4">
                           <div className="flex items-start gap-2">
-                            {getCategoryIcon(template.category)}
+                            <FileText className="h-4 w-4 mt-0.5" style={{ color: 'hsl(var(--primary))' }} />
                             <div>
                               <CardTitle className="text-sm">{template.name}</CardTitle>
                               <CardDescription className="text-xs mt-1">
                                 {template.description}
                               </CardDescription>
+                              <div className="text-xs text-muted-foreground mt-2">
+                                {template.sections.length} sections
+                              </div>
                             </div>
                           </div>
                         </CardHeader>
@@ -508,20 +555,6 @@ export const SpecManagement: React.FC<SpecManagementProps> = ({ onSpecToggle }) 
                         rows={2}
                       />
                     </div>
-
-                    {/* Template Fields */}
-                    {selectedTemplate.fields.map(field => (
-                      <div key={field.id} className="space-y-2">
-                        <Label>
-                          {field.name}
-                          {field.required && <span className="text-red-500 ml-1">*</span>}
-                        </Label>
-                        {field.description && (
-                          <p className="text-xs text-muted-foreground">{field.description}</p>
-                        )}
-                        {renderFieldInput(field)}
-                      </div>
-                    ))}
                   </div>
 
                   <div className="flex justify-end gap-2 pt-4">
@@ -531,7 +564,10 @@ export const SpecManagement: React.FC<SpecManagementProps> = ({ onSpecToggle }) 
                     >
                       Back
                     </Button>
-                    <Button onClick={handleCreateSpec}>
+                    <Button
+                      onClick={handleCreateSpec}
+                      style={{ backgroundColor: 'hsl(var(--primary))' }}
+                    >
                       Create Spec
                     </Button>
                   </div>
