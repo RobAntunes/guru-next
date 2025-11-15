@@ -8,8 +8,8 @@ import { CreateKBDialog } from './CreateKBDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Database, Clock, Upload, Trash2, Plus, Search, FolderOpen, ChevronRight, ArrowUpDown, LucideArrowUpDown, ArrowLeft, Cross, Delete, RemoveFormatting, DeleteIcon, Eye, GitBranch } from 'lucide-react';
-import { CognitiveInsightsPanel } from './CognitiveInsightsPanel';
+import { FileText, Database, Clock, Upload, Trash2, Plus, Search, FolderOpen, ArrowUpDown, LucideArrowUpDown, ArrowLeft, Cross, Delete, RemoveFormatting, DeleteIcon, Eye, GitBranch, Network, List } from 'lucide-react';
+import { UnifiedContextGraph } from './UnifiedContextGraph';
 import { DocumentPreview } from './DocumentPreview';
 import { DocumentOrganizer } from './DocumentOrganizer';
 import { SpecManagement } from './SpecManagement';
@@ -42,6 +42,7 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'resources' | 'specs' | 'prompts'>('resources');
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [resourceView, setResourceView] = useState<'documents' | 'graph'>('documents');
 
   // Load documents and knowledge bases from local storage when component mounts
   useEffect(() => {
@@ -399,9 +400,10 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden relative top-12 px-6">
+    <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex-1 overflow-y-auto px-6 pt-12">
       {/* Header */}
-      <div className='flex justify-between my-2'>
+      <div className='flex justify-between my-2 shrink-0'>
         <div className="flex justify-between shrink-0">
           <div className='flex items-start gap-2 flex-col'>
             {selectedKB && activeTab === 'resources' && (
@@ -423,20 +425,22 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
             </p>
           </div>
         </div>
-        {!selectedKB && activeTab === 'resources' && <Button
-          onClick={() => setShowCreateKBDialog(true)}
-          size="sm"
-          variant="outline"
-        >
-          <Plus className="h-3 w-3 mr-1" />
-          New Knowledge Base
-        </Button>}
+        <div className="flex gap-2">
+          {!selectedKB && activeTab === 'resources' && <Button
+            onClick={() => setShowCreateKBDialog(true)}
+            size="sm"
+            variant="outline"
+          >
+            <Plus className="h-3 w-3 mr-1" />
+            New Knowledge Base
+          </Button>}
+        </div>
       </div>
 
       {/* Main Content */}
       {
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid w-full grid-cols-3 mb-4 shrink-0 gap-1">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex flex-col shrink-0 mb-6">
+          <TabsList className="mb-6 shrink-0 border-b border-border/40 pb-0">
             <TabsTrigger value="resources">
               <Database className="h-3 w-3 mr-1" />
               Resources
@@ -452,137 +456,143 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
           </TabsList>
 
         {/* Resources Tab */}
-        <TabsContent value="resources" className="flex-1 overflow-hidden mt-0">
-          <div className="flex gap-6 h-full">
-        {/* Left Content */}
-        <div className="flex-1 flex flex-col space-y-6 overflow-y-auto">
-          {/* Show KB list when no KB is selected */}
-          {!selectedKB && knowledgeBases.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {knowledgeBases.map((kb) => (
-                <Card
-                  key={kb.id}
-                  className={`cursor-pointer transition-all border-muted hover:border-muted-foreground/20`}
-                  onClick={() => setSelectedKB(kb.id)}
-                >
-                  <CardHeader className="pb-3 relative">
-                    <button
-                      onClick={(e) => handleDeleteKnowledgeBase(kb.id, e)}
-                      className="absolute top-4 right-4 p-1 rounded hover:bg-destructive/20 transition-colors"
-                      title="Delete knowledge base"
+        <TabsContent value="resources" className="mt-0">
+          <div className="w-full">
+              {/* Show KB list when no KB is selected */}
+              {!selectedKB && knowledgeBases.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-6">
+                  {knowledgeBases.map((kb) => (
+                    <Card
+                      key={kb.id}
+                      className={`cursor-pointer transition-all border-muted hover:border-muted-foreground/20`}
+                      onClick={() => setSelectedKB(kb.id)}
                     >
-                      <Delete className="h-3 w-3" />
-                    </button>
-                    <CardTitle className="text-base font-normal">{kb.name}</CardTitle>
-                    <CardDescription className="text-xs">{kb.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-3 w-3" />
-                        <span>{kb.documentCount} documents</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-3 w-3" />
-                        <span>Updated: {new Date(kb.lastUpdated).toLocaleDateString()}</span>
-                      </div>
+                      <CardHeader className="pb-3 relative">
+                        <button
+                          onClick={(e) => handleDeleteKnowledgeBase(kb.id, e)}
+                          className="absolute top-4 right-4 p-1 rounded hover:bg-destructive/20 transition-colors"
+                          title="Delete knowledge base"
+                        >
+                          <Delete className="h-3 w-3" />
+                        </button>
+                        <CardTitle className="text-base font-normal">{kb.name}</CardTitle>
+                        <CardDescription className="text-xs">{kb.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-3 w-3" />
+                            <span>{kb.documentCount} documents</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-3 w-3" />
+                            <span>Updated: {new Date(kb.lastUpdated).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {/* Info Box */}
+              {knowledgeBases.length === 0 && (
+                <div className="flex h-full justify-center items-center">
+                  <Card className="border-muted max-w-xl mx-auto">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-normal">Getting Started</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Knowledge bases are your personal document repositories. They store your files persistently and allow AI to answer questions based on their content.
+                      </p>
+                      <Button
+                        onClick={() => setShowCreateKBDialog(true)}
+                        className="w-full"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Your First Knowledge Base
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* KB Selected View with Tabs */}
+              {selectedKBData && selectedKB && (
+                <Tabs value={resourceView} onValueChange={(v) => setResourceView(v as any)} className="flex flex-col">
+                  <TabsList className="mb-6 shrink-0 border-b border-border/40 pb-0">
+                    <TabsTrigger value="documents">
+                      <FileText className="h-3 w-3 mr-1" />
+                      Documents
+                    </TabsTrigger>
+                    <TabsTrigger value="graph">
+                      <Network className="h-3 w-3 mr-1" />
+                      Context Graph
+                    </TabsTrigger>
+                  </TabsList>
+
+                  {/* Documents Tab */}
+                  <TabsContent value="documents" className="mt-0">
+                    <div className="space-y-4 pb-6">
+                      <Card className="border-muted">
+                        <CardHeader className='flex flex-row justify-between items-center'>
+                          <CardTitle className="text-lg font-normal">Documents</CardTitle>
+                          <CardDescription className="text-xs"><em>Click to preview</em></CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex flex-col gap-4">
+                          {/* Document Organizer */}
+                          <DocumentOrganizer
+                            knowledgeBaseId={selectedKB}
+                            documents={kbDocuments[selectedKB] || []}
+                            onDocumentSelect={setSelectedDocument}
+                            onDocumentDelete={handleDeleteDocument}
+                            onDocumentToggle={() => {
+                              loadKBDocumentsFromStorage(selectedKB);
+                            }}
+                            onGroupsChange={() => {
+                              loadKBDocumentsFromStorage(selectedKB);
+                            }}
+                          />
+
+                          {/* Upload Button */}
+                          <div className='flex justify-end mt-4'>
+                            <Button
+                              onClick={handleFileUpload}
+                              size="sm"
+                              variant="outline"
+                              disabled={isLoading}
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Add Documents
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-          {/* Info Box */}
-          {knowledgeBases.length === 0 && (
-            <div className="flex h-full justify-center items-center">
-              <Card className="border-muted max-w-xl mx-auto">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base font-normal">Getting Started</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Knowledge bases are your personal document repositories. They store your files persistently and allow AI to answer questions based on their content.
-                  </p>
-                  <Button
-                    onClick={() => setShowCreateKBDialog(true)}
-                    className="w-full"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Your First Knowledge Base
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+                  </TabsContent>
 
-
-          {/* Document Upload Section */}
-          {selectedKBData && selectedKB && (
-            <Card className="border-muted h-full">
-              <CardHeader className='flex flex-row justify-between items-center'>
-                <CardTitle className="text-lg font-normal">Resources</CardTitle>
-                <CardDescription className="text-xs"><em>Click to preview</em></CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-4 h-[85%]">
-                {/* Document Organizer */}
-                <div className="flex-1 overflow-hidden">
-                  <DocumentOrganizer
-                    knowledgeBaseId={selectedKB}
-                    documents={kbDocuments[selectedKB] || []}
-                    onDocumentSelect={setSelectedDocument}
-                    onDocumentDelete={handleDeleteDocument}
-                    onDocumentToggle={() => {
-                      // Force refresh of documents to update CognitiveInsightsPanel
-                      loadKBDocumentsFromStorage(selectedKB);
-                    }}
-                    onGroupsChange={() => {
-                      // Force refresh when groups are added/deleted
-                      loadKBDocumentsFromStorage(selectedKB);
-                    }}
-                  />
-                </div>
-
-                {/* Upload Button */}
-                <div className='flex justify-end'>
-                  <Button
-                    onClick={handleFileUpload}
-                    size="sm"
-                    variant="outline"
-                    disabled={isLoading}
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Add Documents
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Right Sidebar - Cognitive Insights */}
-        {selectedKB && activeTab === 'resources' && (
-          <div className="w-96 h-full overflow-hidden">
-            <CognitiveInsightsPanel
-              knowledgeBaseId={selectedKB}
-              documents={kbDocuments[selectedKB] || []}
-              knowledgeBase={selectedKBData ? {
-                name: selectedKBData.name,
-                description: selectedKBData.description,
-                documentCount: selectedKBData.documentCount,
-                chunkCount: selectedKBData.chunkCount,
-                lastUpdated: selectedKBData.lastUpdated.toISOString()
-              } : undefined}
-              onDocumentToggle={() => {
-                loadKBDocumentsFromStorage(selectedKB);
-              }}
-            />
-          </div>
-        )}
+                  {/* Graph View Tab */}
+                  <TabsContent value="graph" className="mt-0">
+                    <UnifiedContextGraph
+                      knowledgeGroups={kbDocuments[selectedKB]?.map(doc => ({
+                        id: doc.id,
+                        name: doc.filename,
+                        documents: [],
+                        metadata: doc.metadata
+                      })) || []}
+                      onToggleNode={() => {
+                        loadKBDocumentsFromStorage(selectedKB);
+                      }}
+                    />
+                  </TabsContent>
+                </Tabs>
+              )}
           </div>
         </TabsContent>
 
         {/* Specs Tab */}
-        <TabsContent value="specs" className="flex-1 overflow-hidden mt-0">
+        <TabsContent value="specs" className="mt-0">
           {!selectedKB ? (
             <div className="flex h-full items-center justify-center">
               <Card className="max-w-md">
@@ -596,42 +606,17 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
               </Card>
             </div>
           ) : (
-          <div className="flex gap-6 h-full">
-            {/* Spec Management takes full width when no KB is selected */}
-            <div className="flex-1">
-              <SpecManagement 
-                onSpecToggle={(specId, enabled) => {
-                  console.log(`Spec ${specId} toggled to ${enabled}`);
-                  // TODO: Update AI context with spec changes
-                }}
-              />
-            </div>
-            
-            {/* Show Cognitive Insights Panel for specs tab too */}
-            {selectedKB && (
-              <div className="w-96 h-full overflow-hidden">
-                <CognitiveInsightsPanel
-                  knowledgeBaseId={selectedKB}
-                  documents={kbDocuments[selectedKB] || []}
-                  knowledgeBase={selectedKBData ? {
-                    name: selectedKBData.name,
-                    description: selectedKBData.description,
-                    documentCount: selectedKBData.documentCount,
-                    chunkCount: selectedKBData.chunkCount,
-                    lastUpdated: selectedKBData.lastUpdated.toISOString()
-                  } : undefined}
-                  onDocumentToggle={() => {
-                    loadKBDocumentsFromStorage(selectedKB);
-                  }}
-                />
-              </div>
-            )}
-          </div>
+            <SpecManagement
+              onSpecToggle={(specId, enabled) => {
+                console.log(`Spec ${specId} toggled to ${enabled}`);
+                // TODO: Update AI context with spec changes
+              }}
+            />
           )}
         </TabsContent>
 
         {/* Prompts Tab */}
-        <TabsContent value="prompts" className="flex-1 overflow-hidden mt-0">
+        <TabsContent value="prompts" className="mt-0">
           {!selectedKB ? (
             <div className="flex h-full items-center justify-center">
               <Card className="max-w-md">
@@ -689,6 +674,7 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
           getDocumentContent={getDocumentContent}
         />
       )}
-    </div >
+      </div>
+    </div>
   );
 }

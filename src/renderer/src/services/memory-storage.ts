@@ -97,22 +97,31 @@ class MemoryStorageService {
   }
 
   /**
-   * Generate embedding vector for text
-   * For now, returns a simple hash-based vector
-   * TODO: Integrate transformers.js or API-based embeddings
+   * Generate embedding vector for text using AI service
    */
   private async generateEmbedding(text: string): Promise<number[]> {
-    // Simple deterministic vector generation based on text
-    // This is a placeholder - should be replaced with real embeddings
-    const hash = this.simpleHash(text);
-    const vector = Array(384).fill(0);
+    try {
+      // Try to use the AI service for embedding generation
+      if ((window as any).api?.ai?.generateEmbedding) {
+        const result = await (window as any).api.ai.generateEmbedding(text)
+        if (result.success && result.data) {
+          return result.data.embedding
+        }
+      }
+    } catch (error) {
+      console.warn('AI embedding generation failed, using fallback:', error)
+    }
+
+    // Fallback to simple hash-based embedding
+    const hash = this.simpleHash(text)
+    const vector = Array(384).fill(0)
     
     // Fill vector with deterministic values based on hash
     for (let i = 0; i < 384; i++) {
-      vector[i] = Math.sin(hash + i) * 0.5 + 0.5;
+      vector[i] = Math.sin(hash + i) * 0.5 + 0.5
     }
     
-    return vector;
+    return vector
   }
 
   private simpleHash(str: string): number {

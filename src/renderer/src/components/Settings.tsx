@@ -394,7 +394,7 @@ export function Settings() {
                 variant="outline"
                 size="sm"
                 onClick={handleResetSettings}
-                className="text-destructive hover:text-destructive bg-red-600! border border-red-500!"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
               >
                 <RotateCcw className="h-4 w-4 mr-2" />
                 Reset

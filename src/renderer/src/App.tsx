@@ -5,8 +5,9 @@ import { MemoryPanel } from './components/MemoryPanel'
 import { SymbolGraph } from './components/SymbolGraph'
 import { ProjectManagement } from './components/ProjectManagement'
 import { Settings } from './components/Settings'
+import { ContextBuilder } from './components/ContextBuilder'
 import { Button } from './components/ui/button'
-import { Home, Database, Brain, Code, Settings as SettingsIcon, FolderKanban, ChevronDown, Plus, Check, Sun, Moon } from 'lucide-react'
+import { Home, Database, Brain, Code, Settings as SettingsIcon, FolderKanban, ChevronDown, Plus, Check, Sun, Moon, FileCode } from 'lucide-react'
 import { analytics } from './services/analytics'
 import { projectStorage, Project } from './services/project-storage'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './components/ui/dropdown-menu'
@@ -23,7 +24,7 @@ interface KnowledgeBase {
   lastUpdated: Date;
 }
 
-type ViewType = 'dashboard' | 'knowledge' | 'specs' | 'prompts' | 'memory' | 'symbols' | 'projects' | 'settings'
+type ViewType = 'dashboard' | 'knowledge' | 'specs' | 'prompts' | 'memory' | 'symbols' | 'projects' | 'settings' | 'context'
 
 function App() {
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([])
@@ -141,6 +142,8 @@ function App() {
         return <MemoryPanel />
       case 'symbols':
         return <SymbolGraph />
+      case 'context':
+        return <ContextBuilder />
       case 'projects':
         return <ProjectManagement />
       case 'settings':
@@ -207,6 +210,12 @@ function App() {
               isActive={currentView === 'symbols'}
               onClick={() => handleNavigate('symbols')}
               label="Symbols"
+            />
+            <NavButton
+              icon={FileCode}
+              isActive={currentView === 'context'}
+              onClick={() => handleNavigate('context')}
+              label="Context"
             />
           </div>
 
@@ -322,17 +331,19 @@ function NavButton({ icon: Icon, isActive, onClick, label }: NavButtonProps) {
         flex items-center justify-center
         transition-all duration-500 ease-out
         ${isActive
-          ? 'bg-muted/40 border-2 border-foreground/30 shadow-cosmic-lg scale-105'
+          ? 'bg-primary/20 border-2 border-primary shadow-cosmic-lg scale-105'
           : 'bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground hover:scale-110 hover:-translate-y-1 shadow-cosmic border-2 border-transparent hover:border-foreground/20'
         }
       `}
     >
       {isActive && (
         <>
-          {/* Refined subtle glow */}
-          <div className="absolute -inset-2 bg-white/8 rounded-2xl blur-xl opacity-60 animate-glow-pulse" />
+          {/* Active state glow */}
+          <div className="absolute -inset-2 bg-primary/20 rounded-2xl blur-xl opacity-70 animate-pulse" />
           {/* Shimmer overlay */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent rounded-2xl shimmer" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-primary/30 via-transparent to-transparent rounded-2xl shimmer" />
+          {/* Active indicator dot */}
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full shadow-[0_0_8px_currentColor]" />
         </>
       )}
       <Icon className={`

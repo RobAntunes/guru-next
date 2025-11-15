@@ -18,13 +18,16 @@ async function createWindow() {
 
     await fileStorage.initialize()
     console.log('File storage initialized successfully')
-
-    // Skip AI services for now (ONNX Runtime has corrupted models)
-    // Memory system uses simple hash-based embeddings instead
-    console.log('AI services disabled - using fallback embeddings')
-    console.log('Memory system will use simple hash-based embeddings')
   } catch (error) {
     console.error('Failed to initialize core services:', error)
+  }
+  
+  // Initialize AI Service (with graceful fallback)
+  try {
+    await aiModelService.initialize()
+  } catch (error) {
+    console.error('AI Service initialization error:', error.message)
+    // Continue anyway - it will use fallback mode
   }
   
   // Register IPC handlers

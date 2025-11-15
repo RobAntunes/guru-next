@@ -79,16 +79,16 @@ export function SymbolGraph() {
 
   const handleSelectDirectory = async () => {
     try {
-      if (!(window as any).api?.dialog?.selectDirectory) {
+      if (!window.api?.file?.openFolderDialog) {
         alert('File system API not available yet. This feature requires main process implementation.')
         return
       }
 
-      const result = await (window as any).api.dialog.selectDirectory()
-      if (result) {
-        setSelectedPath(result)
-        await loadDirectoryStructure(result)
-        analytics.trackSymbolGraph('opened', { path: result })
+      const result = await window.api.file.openFolderDialog()
+      if (result.success && result.data) {
+        setSelectedPath(result.data)
+        await loadDirectoryStructure(result.data)
+        analytics.trackSymbolGraph('opened', { path: result.data })
       }
     } catch (error) {
       console.error('Failed to select directory:', error)
@@ -100,15 +100,22 @@ export function SymbolGraph() {
   const loadDirectoryStructure = async (path: string) => {
     setIsLoading(true)
     try {
-      if (!(window as any).api?.filesystem?.readDirectory) {
+      if (!window.api?.file?.getDirectoryFiles) {
         console.warn('File system API not available - using demo data')
         loadDemoData()
         return
       }
 
-      const structure = await (window as any).api.filesystem.readDirectory(path)
-      setFiles(structure)
-      await parseAllFiles(structure)
+      const result = await window.api.file.getDirectoryFiles(path, true)
+      if (result.success && result.data) {
+        // Convert FileInfo[] to FileNode[] structure
+        const structure = convertFileInfoToFileNodes(result.data, path)
+        setFiles(structure)
+        await parseAllFiles(structure)
+      } else {
+        console.error('Failed to get directory files:', result.error)
+        loadDemoData()
+      }
     } catch (error) {
       console.error('Failed to load directory:', error)
       analytics.trackError(error as Error, 'symbol_graph_load')
@@ -177,13 +184,16 @@ export function SymbolGraph() {
     const processNode = async (node: FileNode) => {
       if (node.type === 'file' && isCodeFile(node.path)) {
         try {
-          if ((window as any).api?.filesystem?.readFile) {
-            const code = await (window as any).api.filesystem.readFile(node.path)
-            const result = await parseCodeWithTreeSitter(code, node.path)
-            allSymbols.push(...result.symbols)
-            allRelationships.push(...result.relationships)
-            node.symbols = result.symbols
-            node.code = code
+          if (window.api?.file?.readContent) {
+            const result = await window.api.file.readContent(node.path)
+            if (result.success && result.data) {
+              const code = result.data
+              const parseResult = await parseCodeWithTreeSitter(code, node.path)
+              allSymbols.push(...parseResult.symbols)
+              allRelationships.push(...parseResult.relationships)
+              node.symbols = parseResult.symbols
+              node.code = code
+            }
           }
         } catch (error) {
           console.error(`Failed to parse ${node.path}:`, error)
@@ -207,6 +217,41 @@ export function SymbolGraph() {
   const isCodeFile = (path: string): boolean => {
     const codeExtensions = ['.ts', '.tsx', '.js', '.jsx', '.py', '.java', '.go', '.rs', '.cpp', '.c']
     return codeExtensions.some((ext) => path.endsWith(ext))
+  }
+
+  const convertFileInfoToFileNodes = (files: any[], rootPath: string): FileNode[] => {
+    const pathMap = new Map<string, FileNode>()
+    const rootNodes: FileNode[] = []
+
+    // Sort files by path length (shallowest first)
+    const sortedFiles = [...files].sort((a, b) => a.path.localeCompare(b.path))
+
+    for (const fileInfo of sortedFiles) {
+      const relativePath = fileInfo.path.replace(rootPath, '').replace(/^\//, '')
+      const parts = relativePath.split('/').filter(Boolean)
+      const fileName = parts[parts.length - 1]
+
+      const node: FileNode = {
+        name: fileName || fileInfo.name,
+        path: fileInfo.path,
+        type: fileInfo.isDirectory ? 'directory' : 'file'
+      }
+
+      pathMap.set(fileInfo.path, node)
+
+      if (parts.length === 1 || rootPath === fileInfo.path) {
+        rootNodes.push(node)
+      } else {
+        const parentPath = fileInfo.path.substring(0, fileInfo.path.lastIndexOf('/'))
+        const parent = pathMap.get(parentPath)
+        if (parent) {
+          if (!parent.children) parent.children = []
+          parent.children.push(node)
+        }
+      }
+    }
+
+    return rootNodes
   }
 
   const handleFileClick = async (node: FileNode) => {
@@ -328,14 +373,60 @@ export function SymbolGraph() {
   }
 
   const exportSymbols = () => {
-    const data = JSON.stringify({ symbols: filteredSymbols, relationships }, null, 2)
-    const blob = new Blob([data], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'symbols.json'
-    a.click()
-    analytics.trackSymbolGraph('exported', { count: filteredSymbols.length })
+    const format = confirm('Export as LLM context file instead of JSON? (OK=context, Cancel=JSON)')
+    
+    if (format) {
+      // Export as LLM context format
+      let context = '# Symbol Context Export\n\n'
+      context += `Generated from: ${selectedPath || 'Unknown'}\n`
+      context += `Total symbols: ${filteredSymbols.length}\n`
+      context += `Generated at: ${new Date().toISOString()}\n\n`
+      context += '---\n\n'
+      
+      // Group by file
+      const symbolsByFile = filteredSymbols.reduce((acc, symbol) => {
+        const file = symbol.location.file
+        if (!acc[file]) acc[file] = []
+        acc[file].push(symbol)
+        return acc
+      }, {} as Record<string, typeof filteredSymbols>)
+      
+      for (const [file, fileSymbols] of Object.entries(symbolsByFile)) {
+        context += `## ${file}\n\n`
+        for (const symbol of fileSymbols) {
+          context += `### ${symbol.name} (${symbol.type})\n`
+          if (symbol.signature) {
+            context += "\n```typescript\n" + symbol.signature + "\n```\n"
+          }
+          if (symbol.documentation) {
+            context += `\n${symbol.documentation}\n`
+          }
+          if (symbol.references && symbol.references.length > 0) {
+            context += `\n**References:** ${symbol.references.join(', ')}\n`
+          }
+          context += `\n**Location:** ${symbol.location.file}:${symbol.location.line}\n\n`
+          context += '---\n\n'
+        }
+      }
+      
+      const blob = new Blob([context], { type: 'text/markdown' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'symbol-context.md'
+      a.click()
+      analytics.trackSymbolGraph('exported_context', { count: filteredSymbols.length, format: 'markdown' })
+    } else {
+      // Export as JSON
+      const data = JSON.stringify({ symbols: filteredSymbols, relationships }, null, 2)
+      const blob = new Blob([data], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'symbols.json'
+      a.click()
+      analytics.trackSymbolGraph('exported', { count: filteredSymbols.length, format: 'json' })
+    }
   }
 
   const renderFileTree = (nodes: FileNode[], depth: number = 0) => {

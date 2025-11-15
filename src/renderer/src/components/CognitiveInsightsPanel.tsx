@@ -11,11 +11,9 @@ import {
   FileText,
   Database,
   Clock,
-  Activity,
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import { UnifiedContextGraph } from './UnifiedContextGraph';
 import { documentGroupsStorage, DocumentGroup } from '../services/document-groups-storage';
 
 interface CognitiveInsightsPanelProps {
@@ -37,13 +35,14 @@ export const CognitiveInsightsPanel: React.FC<CognitiveInsightsPanelProps> = ({
   knowledgeBase,
   onDocumentToggle
 }) => {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['graph', 'stats']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['stats', 'activity']));
   const [groups, setGroups] = useState<DocumentGroup[]>([]);
   const [stats, setStats] = useState({
     totalDocuments: 0,
     activeDocuments: 0,
     totalGroups: 0,
-    lastUpdate: new Date()
+    lastUpdate: new Date(),
+    categoryCounts: {} as Record<string, number>
   });
 
   useEffect(() => {
@@ -74,6 +73,8 @@ export const CognitiveInsightsPanel: React.FC<CognitiveInsightsPanelProps> = ({
 
       // Calculate stats
       let activeCount = 0;
+      const categoryCounts: Record<string, number> = {};
+
       flatGroups.forEach(group => {
         group.documents?.forEach((docRef: any) => {
           if (docRef.membership?.isActive) {
@@ -82,11 +83,18 @@ export const CognitiveInsightsPanel: React.FC<CognitiveInsightsPanelProps> = ({
         });
       });
 
+      // Count documents by category
+      documents.forEach(doc => {
+        const category = doc.category || 'uncategorized';
+        categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+      });
+
       setStats({
         totalDocuments: documents.length,
         activeDocuments: activeCount,
         totalGroups: flatGroups.length,
-        lastUpdate: new Date()
+        lastUpdate: new Date(),
+        categoryCounts
       });
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -106,134 +114,155 @@ export const CognitiveInsightsPanel: React.FC<CognitiveInsightsPanelProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col space-y-3 overflow-y-auto p-3">
+    <div className="h-full flex flex-col space-y-4 overflow-y-auto p-4">
       {/* Knowledge Base Stats */}
-      <Card className="shrink-0">
+      <Card className="shrink-0 border-border/40 bg-card/50 backdrop-blur-sm">
         <CardHeader 
-          className="cursor-pointer flex flex-row items-center justify-between p-3"
+          className="cursor-pointer flex flex-row items-center justify-between p-4 hover:bg-muted/30 transition-colors rounded-t-lg"
           onClick={() => toggleSection('stats')}
         >
           <div className="flex items-center space-x-2">
-            <Database className="w-4 h-4" />
-            <CardTitle className="text-sm">Knowledge Base Stats</CardTitle>
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Database className="w-4 h-4 text-primary" />
+            </div>
+            <CardTitle className="text-sm font-semibold">Statistics</CardTitle>
           </div>
           {expandedSections.has('stats') ? (
-            <ChevronUp className="w-4 h-4" />
+            <ChevronUp className="w-4 h-4 text-muted-foreground" />
           ) : (
-            <ChevronDown className="w-4 h-4" />
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
           )}
         </CardHeader>
         
         {expandedSections.has('stats') && (
-          <CardContent className="space-y-2 p-3 pt-0">
-            {knowledgeBase && (
-              <>
-                <div className="pb-2">
-                  <div className="text-sm font-medium">{knowledgeBase.name}</div>
-                  <div className="text-xs text-muted-foreground line-clamp-2">{knowledgeBase.description}</div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center space-x-2">
-                    <FileText className="w-4 h-4 text-blue-500" />
-                    <div>
-                      <div className="text-xs text-muted-foreground">Total Docs</div>
-                      <div className="text-sm font-medium">{stats.totalDocuments}</div>
-                    </div>
+          <CardContent className="p-4 pt-0 space-y-3">
+            {/* Overview Stats */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20">
+                <span className="text-xs text-muted-foreground font-medium">Total</span>
+                <Badge variant="secondary" className="text-xs font-semibold">
+                  {stats.totalDocuments}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20">
+                <span className="text-xs text-muted-foreground font-medium">Groups</span>
+                <Badge variant="secondary" className="text-xs font-semibold">
+                  {stats.totalGroups}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Category Breakdown */}
+            {Object.keys(stats.categoryCounts).length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-muted-foreground">By Category</div>
+                {Object.entries(stats.categoryCounts).map(([category, count]) => (
+                  <div key={category} className="flex items-center justify-between p-2 rounded-lg bg-muted/20">
+                    <span className="text-xs capitalize">{category}</span>
+                    <Badge variant="outline" className="text-xs">
+                      {count}
+                    </Badge>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Activity className="w-4 h-4 text-green-500" />
-                    <div>
-                      <div className="text-xs text-muted-foreground">Active</div>
-                      <div className="text-sm font-medium">{stats.activeDocuments}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Database className="w-4 h-4 text-purple-500" />
-                    <div>
-                      <div className="text-xs text-muted-foreground">Groups</div>
-                      <div className="text-sm font-medium">{stats.totalGroups}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Clock className="w-4 h-4 text-orange-500" />
-                    <div>
-                      <div className="text-xs text-muted-foreground">Updated</div>
-                      <div className="text-xs font-medium">
-                        {new Date(knowledgeBase.lastUpdated).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-            
-            {!knowledgeBase && (
-              <div className="text-sm text-muted-foreground">
-                No knowledge base selected
+                ))}
               </div>
             )}
           </CardContent>
         )}
       </Card>
 
-      {/* Context Graph */}
-      {expandedSections.has('graph') ? (
-        <Card className="flex-1 min-h-[300px] flex flex-col">
-          <CardHeader 
-            className="cursor-pointer flex flex-row items-center justify-between shrink-0 p-3"
-            onClick={() => toggleSection('graph')}
-          >
-            <div className="flex items-center space-x-2">
-              <Network className="w-4 h-4" />
-              <CardTitle className="text-sm">Context Overview</CardTitle>
+      {/* Document Groups */}
+      <Card className="shrink-0 border-border/40 bg-card/50 backdrop-blur-sm">
+        <CardHeader
+          className="cursor-pointer flex flex-row items-center justify-between p-4 hover:bg-muted/30 transition-colors rounded-t-lg"
+          onClick={() => toggleSection('groups')}
+        >
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Network className="w-4 h-4 text-primary" />
             </div>
-            <ChevronUp className="w-4 h-4" />
-          </CardHeader>
-          
-          <CardContent className="flex-1 min-h-0 p-3 pt-0 overflow-y-auto max-h-[400px]">
-            <div className="w-full" style={{ height: '600px' }}>
-              <UnifiedContextGraph 
-                knowledgeGroups={groups}
-                onToggleNode={onDocumentToggle}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="shrink-0">
-          <CardHeader 
-            className="cursor-pointer flex flex-row items-center justify-between p-3"
-            onClick={() => toggleSection('graph')}
-          >
-            <div className="flex items-center space-x-2">
-              <Network className="w-4 h-4" />
-              <CardTitle className="text-sm">Context Overview</CardTitle>
-            </div>
-            <ChevronDown className="w-4 h-4" />
-          </CardHeader>
-        </Card>
-      )}
-
-      {/* Quick Info */}
-      <Card className="shrink-0">
-        <CardHeader className="p-3">
-          <CardTitle className="text-sm">Context Summary</CardTitle>
+            <CardTitle className="text-sm font-semibold">Document Groups</CardTitle>
+          </div>
+          {expandedSections.has('groups') ? (
+            <ChevronUp className="w-4 h-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          )}
         </CardHeader>
-        <CardContent className="space-y-2 p-3 pt-0">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Total Items</span>
-            <Badge variant="outline" className="text-xs bg-black text-white border-blue-200">
-              {stats.totalDocuments + stats.totalGroups}
-            </Badge>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Inactive</span>
-            <Badge variant="outline" className="text-xs bg-black text-white border-gray-200">
-              {stats.totalDocuments - stats.activeDocuments}
-            </Badge>
-          </div>
-        </CardContent>
+
+        {expandedSections.has('groups') && (
+          <CardContent className="p-4 pt-0 max-h-60 overflow-y-auto">
+            {groups.length > 0 ? (
+              <div className="space-y-2">
+                {groups.slice(0, 5).map((group) => (
+                  <div key={group.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors">
+                    <div className="flex items-center space-x-2 min-w-0">
+                      <Network className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <span className="text-xs font-medium truncate">{group.name}</span>
+                    </div>
+                    <Badge variant="secondary" className="text-xs shrink-0">
+                      {group.documents?.length || 0}
+                    </Badge>
+                  </div>
+                ))}
+                {groups.length > 5 && (
+                  <p className="text-xs text-muted-foreground text-center pt-2">
+                    +{groups.length - 5} more groups
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                No document groups yet
+              </p>
+            )}
+          </CardContent>
+        )}
       </Card>
+
+      {/* Recent Activity */}
+      <Card className="shrink-0 border-border/40 bg-card/50 backdrop-blur-sm">
+        <CardHeader
+          className="cursor-pointer flex flex-row items-center justify-between p-4 hover:bg-muted/30 transition-colors rounded-t-lg"
+          onClick={() => toggleSection('activity')}
+        >
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Clock className="w-4 h-4 text-primary" />
+            </div>
+            <CardTitle className="text-sm font-semibold">Recent Documents</CardTitle>
+          </div>
+          {expandedSections.has('activity') ? (
+            <ChevronUp className="w-4 h-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          )}
+        </CardHeader>
+
+        {expandedSections.has('activity') && (
+          <CardContent className="p-4 pt-0 max-h-60 overflow-y-auto">
+            {documents.length > 0 ? (
+              <div className="space-y-2">
+                {documents.slice(0, 5).map((doc) => (
+                  <div key={doc.id} className="flex items-start space-x-2 p-2 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors">
+                    <FileText className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium truncate">{doc.filename}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(doc.addedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                No documents yet
+              </p>
+            )}
+          </CardContent>
+        )}
+      </Card>
+
     </div>
   );
 };

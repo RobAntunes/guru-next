@@ -33,7 +33,7 @@ export const UnifiedContextGraph: React.FC<UnifiedContextGraphProps> = ({
   const [graphData, setGraphData] = useState<ContextGraphData | null>(null);
   const [selectedNode, setSelectedNode] = useState<ContextNode | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(['knowledge', 'filesystem', 'tools', 'memory', 'session', 'specs'])
+    new Set(['knowledge'])
   );
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -45,65 +45,10 @@ export const UnifiedContextGraph: React.FC<UnifiedContextGraphProps> = ({
 
     contextGraphService.on('graphUpdated', handleGraphUpdate);
 
-    // Update knowledge nodes
+    // Update knowledge nodes only - remove all mock data
     if (knowledgeGroups.length > 0) {
       contextGraphService.updateKnowledgeNodes(knowledgeGroups);
     }
-
-    // Update file system context with project structure
-    contextGraphService.updateFileSystemContext({
-      rootPath: './my-project',
-      allowedPaths: ['./src', './docs', './config', './tests'],
-      fileCount: 247,
-      totalSize: 3.8 * 1024 * 1024,
-      fileTypes: { '.ts': 82, '.tsx': 54, '.json': 18, '.md': 45, '.css': 28, '.py': 20 }
-    });
-
-    contextGraphService.updateToolContext({
-      availableTools: [
-        { id: 'code-search', name: 'Code Search', description: 'Semantic code search', enabled: true, category: 'development' },
-        { id: 'refactor', name: 'Refactoring', description: 'AI-powered refactoring', enabled: true, category: 'development' },
-        { id: 'docs-gen', name: 'Doc Generator', description: 'Generate documentation', enabled: true, category: 'documentation' },
-        { id: 'test-gen', name: 'Test Generator', description: 'Generate unit tests', enabled: false, category: 'testing' },
-        { id: 'analyzer', name: 'Code Analyzer', description: 'Static analysis', enabled: true, category: 'development' }
-      ],
-      activeToolCount: 4
-    });
-
-    // Load real memory stats
-    const loadMemoryStats = async () => {
-      try {
-        const stats = await (window as any).api?.memory?.getStats();
-        if (stats) {
-          contextGraphService.updateMemoryContext({
-            patterns: stats.patterns || 0,
-            insights: stats.insights || 0,
-            interactions: stats.memories || 0,
-            lastUpdated: new Date()
-          });
-        }
-      } catch (error) {
-        console.error('Failed to load memory stats:', error);
-        // Fallback to default values
-        contextGraphService.updateMemoryContext({
-          patterns: 0,
-          insights: 0,
-          interactions: 0,
-          lastUpdated: new Date()
-        });
-      }
-    };
-    
-    loadMemoryStats();
-
-    contextGraphService.updateSessionContext({
-      activeSessions: [
-        { id: 'dev-1', type: 'Development', startTime: new Date(), status: 'active' },
-        { id: 'review-1', type: 'Code Review', startTime: new Date(), status: 'active' }
-      ],
-      conversationLength: 67,
-      contextTokens: 12584
-    });
 
     // Get initial data
     setGraphData(contextGraphService.getGraphData());
@@ -162,9 +107,13 @@ export const UnifiedContextGraph: React.FC<UnifiedContextGraphProps> = ({
     const svg = d3.select(svgRef.current);
     const g = svg.append('g');
 
-    // Add zoom behavior with proper typing
+    // Add zoom and pan behavior - only with Shift key
     const zoom = d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.3, 3])
+      .scaleExtent([0.3, 5])
+      .filter((event) => {
+        // Only allow zoom when Shift key is pressed, or it's a programmatic zoom
+        return event.shiftKey || event.type === 'dblclick' || !event.type;
+      })
       .on('zoom', (event) => {
         g.attr('transform', event.transform.toString());
       });
@@ -204,23 +153,23 @@ export const UnifiedContextGraph: React.FC<UnifiedContextGraphProps> = ({
       });
     });
     
-    // Use force simulation for all nodes
+    // Use force simulation for all nodes with increased spacing
     const simulation = d3.forceSimulation(graphData.nodes as any)
       .force('link', d3.forceLink(enhancedEdges)
         .id((d: any) => d.id)
-        .distance(d => d.type === 'contains' ? 50 : 100)
-        .strength(d => d.type === 'contains' ? 1 : 0.3))
+        .distance(d => d.type === 'contains' ? 100 : 200)
+        .strength(d => d.type === 'contains' ? 0.5 : 0.2))
       .force('charge', d3.forceManyBody()
         .strength(d => {
           const node = d as any;
-          if (node.type === 'group') return -400;
-          if (node.type === 'directory') return -300;
-          return -200;
+          if (node.type === 'group') return -800;
+          if (node.type === 'directory') return -600;
+          return -400;
         }))
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('collision', d3.forceCollide().radius(d => {
         const node = d as any;
-        return getNodeRadius(node) + 10;
+        return getNodeRadius(node) + 40;
       }));
 
     // Draw edges with different styles
@@ -313,20 +262,26 @@ export const UnifiedContextGraph: React.FC<UnifiedContextGraphProps> = ({
 
     // Position nodes based on category with better spacing
     const categoryPositions: Record<string, { x: number, y: number }> = {
-      knowledge: { x: width * 0.2, y: height * 0.25 },
-      specs: { x: width * 0.5, y: height * 0.25 },
-      filesystem: { x: width * 0.8, y: height * 0.25 },
-      tools: { x: width * 0.2, y: height * 0.75 },
-      memory: { x: width * 0.5, y: height * 0.75 },
-      session: { x: width * 0.8, y: height * 0.75 }
+      knowledge: { x: width * 0.3, y: height * 0.3 },
+      specs: { x: width * 0.7, y: height * 0.3 },
+      filesystem: { x: width * 0.5, y: height * 0.5 },
+      tools: { x: width * 0.3, y: height * 0.7 },
+      memory: { x: width * 0.5, y: height * 0.7 },
+      session: { x: width * 0.7, y: height * 0.7 }
     };
 
-    // Initialize positions for category roots
-    graphData.nodes.forEach((node: any) => {
+    // Initialize positions for category roots with wider spacing
+    graphData.nodes.forEach((node: any, i: number) => {
       const pos = categoryPositions[node.category];
       if (pos && (node.id.endsWith('-root') || (!node.parent && node.type === 'group'))) {
-        node.fx = pos.x + (Math.random() - 0.5) * 50;
-        node.fy = pos.y + (Math.random() - 0.5) * 50;
+        node.fx = pos.x + (Math.random() - 0.5) * 200;
+        node.fy = pos.y + (Math.random() - 0.5) * 200;
+      } else if (node.category === 'knowledge') {
+        // Spread knowledge nodes across the canvas
+        const angle = (i / graphData.nodes.length) * 2 * Math.PI;
+        const radius = 150 + Math.random() * 100;
+        node.x = width / 2 + Math.cos(angle) * radius;
+        node.y = height / 2 + Math.sin(angle) * radius;
       }
     });
 
@@ -484,58 +439,69 @@ export const UnifiedContextGraph: React.FC<UnifiedContextGraphProps> = ({
   if (!graphData) return null;
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header - more compact */}
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-medium">AI Context Graph</h3>
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-xs">
-            {graphData.stats.totalNodes} nodes
-          </Badge>
-          <Badge variant="default" className="text-xs">
-            {graphData.stats.activeNodes} active
-          </Badge>
-        </div>
-      </div>
-
-      {/* Category Summary - 3x2 grid */}
-      <div className="grid grid-cols-3 gap-2 mb-3">
-        {Object.entries(graphData.stats.byCategory).map(([category, count]) => (
-          <div key={category} className="flex items-center justify-between px-3 py-2 bg-muted/30 rounded-md">
-            <span className="text-xs capitalize">{category}</span>
-            <Badge variant="outline" className="text-xs h-5">{count}</Badge>
-          </div>
-        ))}
-      </div>
-
-      {/* Main content - taller */}
-      <div className="flex flex-col gap-4 overflow-hidden">
+    <div className="w-full pb-6">
+      {/* Grid Layout: Graph (2fr) + Info Panel (1fr) */}
+      <div className="grid gap-4" style={{ gridTemplateColumns: '2fr 1fr' }}>
         {/* Graph Visualization */}
-        <Card className="fp-4 bg-background/50" ref={containerRef}>
+        <Card className="bg-background/50 p-4 relative" style={{ height: '700px' }} ref={containerRef}>
+          {/* Shift Key Indicator */}
+          <div className="absolute top-4 left-4 z-10 bg-background/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-border/40 shadow-sm">
+            <p className="text-xs text-muted-foreground flex items-center gap-2">
+              <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono border border-border">Shift</kbd>
+              Press and hold for pan and zoom
+            </p>
+          </div>
           <svg
             ref={svgRef}
             className="w-full h-full"
-            style={{ minHeight: '300px' }}
-            />
-        </Card>
-        
-        {/* Context Details Panel */}
-        <div className="flex-1 min-w-[300px] max-w-md">
-          <ContextDetailsPanel
-            node={selectedNode}
-            allNodes={graphData?.nodes || []}
-            onToggle={(nodeId, active) => {
-              if (onToggleNode) {
-                contextGraphService.toggleNode(nodeId);
-                onToggleNode(nodeId, active);
-              }
-            }}
-            onClose={() => setSelectedNode(null)}
+            style={{ cursor: 'default' }}
           />
+        </Card>
+
+        {/* Info Panel */}
+        <div className="flex flex-col gap-3" style={{ height: '700px' }}>
+          {/* Header Stats */}
+          <Card className="bg-background/50 p-4 shrink-0">
+            <h3 className="text-sm font-semibold mb-3">Overview</h3>
+            <div className="flex items-center gap-2 mb-3">
+              <Badge variant="secondary" className="text-xs">
+                {graphData.stats.totalNodes} nodes
+              </Badge>
+              <Badge variant="default" className="text-xs">
+                {graphData.stats.activeNodes} active
+              </Badge>
+            </div>
+
+            {/* Category Summary */}
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div className="text-xs font-medium text-muted-foreground mb-2">By Category</div>
+              {Object.entries(graphData.stats.byCategory).map(([category, count]) => (
+                <div key={category} className="flex items-center justify-between px-3 py-2 bg-muted/30 rounded-md">
+                  <span className="text-xs capitalize">{category}</span>
+                  <Badge variant="outline" className="text-xs h-5">{count}</Badge>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Context Details Panel */}
+          {selectedNode && (
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <ContextDetailsPanel
+                node={selectedNode}
+                allNodes={graphData?.nodes || []}
+                onToggle={(nodeId, active) => {
+                  if (onToggleNode) {
+                    contextGraphService.toggleNode(nodeId);
+                    onToggleNode(nodeId, active);
+                  }
+                }}
+                onClose={() => setSelectedNode(null)}
+              />
+            </div>
+          )}
         </div>
       </div>
-
-
     </div>
   );
 };
