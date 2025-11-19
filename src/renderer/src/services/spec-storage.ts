@@ -246,7 +246,7 @@ class SpecStorage {
   async getAllSpecs(): Promise<Spec[]> {
     const stored = localStorage.getItem(this.STORAGE_KEY);
     if (!stored) return [];
-    
+
     const specs = JSON.parse(stored);
     return specs.map((spec: any) => ({
       ...spec,
@@ -330,17 +330,28 @@ class SpecStorage {
     const { projectStorage } = await import('./project-storage');
     await projectStorage.updateProjectMetadata(projectId);
 
+    // Index spec for AI
+    try {
+      // @ts-ignore
+      if (window.api && window.api.spec) {
+        // @ts-ignore
+        await window.api.spec.index(newSpec);
+      }
+    } catch (error) {
+      console.error('Failed to index spec:', error);
+    }
+
     return newSpec;
   }
 
   async updateSpec(id: string, updates: Partial<Spec>): Promise<Spec | null> {
     const allSpecs = await this.getAllSpecs();
     const index = allSpecs.findIndex(spec => spec.id === id);
-    
+
     if (index === -1) return null;
-    
+
     const currentSpec = allSpecs[index];
-    
+
     // Check if spec is immutable
     if (currentSpec.immutable) {
       throw new Error('Cannot update immutable spec');
@@ -384,13 +395,24 @@ class SpecStorage {
     allSpecs[index] = updatedSpec;
     localStorage.setItem(this.STORAGE_KEY, JSON.stringify(allSpecs));
 
+    // Index spec for AI
+    try {
+      // @ts-ignore
+      if (window.api && window.api.spec) {
+        // @ts-ignore
+        await window.api.spec.index(updatedSpec);
+      }
+    } catch (error) {
+      console.error('Failed to index spec:', error);
+    }
+
     return updatedSpec;
   }
 
   async deleteSpec(id: string): Promise<void> {
     const allSpecs = await this.getAllSpecs();
     const spec = allSpecs.find(s => s.id === id);
-    
+
     if (spec?.immutable) {
       throw new Error('Cannot delete immutable spec');
     }
@@ -402,7 +424,7 @@ class SpecStorage {
   async makeSpecImmutable(id: string): Promise<void> {
     const allSpecs = await this.getAllSpecs();
     const index = allSpecs.findIndex(spec => spec.id === id);
-    
+
     if (index !== -1) {
       allSpecs[index].immutable = true;
       allSpecs[index].metadata.updatedAt = new Date();
@@ -463,13 +485,13 @@ class SpecStorage {
   async migrateSpecsToProjects(): Promise<void> {
     const allSpecs = await this.getAllSpecs();
     const { projectStorage } = await import('./project-storage');
-    
+
     // Get default project
     const defaultProject = await projectStorage.getDefaultProject();
     if (!defaultProject) {
       throw new Error('No default project found');
     }
-    
+
     // Update specs without projectId
     let updated = false;
     for (const spec of allSpecs) {
@@ -478,7 +500,7 @@ class SpecStorage {
         updated = true;
       }
     }
-    
+
     if (updated) {
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(allSpecs));
     }

@@ -1,77 +1,84 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
 
+@theme {
+  --color-sidebar: var(--muted);
+  --color-sidebar-foreground: var(--muted-foreground);
+}
+
 @layer base {
   :root {
-    /* Light theme: Warm beige, cream with deep red accent */
-    --background: 30 25% 96%; /* Soft cream background */
-    --foreground: 25 35% 15%; /* Deep brown text */
+    /* Light Mode "Technical Brutalism" */
+    --background: 0 0% 98%;
+    /* Paper White */
+    --foreground: 0 0% 10%;
+    /* Technical Black */
+    --foreground-highlight: 0 0% 0%;
+    /* Pure Black */
 
-    --card: 35 30% 98%; /* Off-white cream cards */
-    --card-foreground: 25 35% 15%;
+    --card: 0 0% 100%;
+    /* Pure White */
+    --card-foreground: 0 0% 10%;
 
-    --popover: 35 30% 98%;
-    --popover-foreground: 25 35% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
 
-    --primary: 0 70% 45%; /* Deep red accent */
-    --primary-foreground: 35 30% 98%;
+    --primary: 0 0% 10%;
+    /* Black for accents */
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 35 20% 88%; /* Light beige */
-    --secondary-foreground: 25 35% 15%;
+    --secondary: 0 0% 94%;
+    /* Light Gray */
+    --secondary-foreground: 0 0% 10%;
 
-    --muted: 30 20% 92%; /* Soft beige */
-    --muted-foreground: 25 25% 40%; /* Medium brown */
+    --muted: 0 0% 94%;
+    --muted-foreground: 0 0% 40%;
 
-    --accent: 35 45% 85%; /* Warm peach accent */
-    --accent-foreground: 25 35% 15%;
+    --accent: 0 0% 92%;
+    --accent-foreground: 0 0% 10%;
 
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 35 30% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 30 18% 85%; /* Light tan borders */
-    --input: 30 18% 88%;
-    --ring: 0 70% 45%; /* Deep red focus ring */
-    --radius: 0.5rem;
+    --border: 0 0% 85%;
+    /* Visible gray border */
+    --input: 0 0% 85%;
+    --ring: 0 0% 10%;
+
+    --radius: 0px;
+    /* Sharp corners */
   }
 
   .dark {
-    /* Pure grayscale - off-black background */
-    --background: 0 0% 10%;
-    --foreground: 0 0% 98%;
+    /* Dark Mode "Technical Brutalism" (Shades of Black) */
+    --background: 0 0% 5%;
+    --foreground: 0 0% 60%;
+    --foreground-highlight: 0 0% 90%;
 
-    /* Elevated surfaces with subtle lift */
-    --card: 0 0% 14%;
-    --card-foreground: 0 0% 98%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 60%;
 
-    --popover: 0 0% 12%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 60%;
 
-    /* Deep red primary accent */
-    --primary: 0 75% 50%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 0 0% 90%;
+    --primary-foreground: 0 0% 5%;
 
-    /* Mid-gray secondary */
-    --secondary: 0 0% 20%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 60%;
 
-    /* Muted grays */
-    --muted: 0 0% 18%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 40%;
 
-    /* Light gray accent */
-    --accent: 0 0% 25%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 90%;
 
-    /* Red for errors (only colored element) */
-    --destructive: 0 70% 55%;
+    --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
-    /* Subtle borders */
-    --border: 0 0% 22%;
-    --input: 0 0% 20%;
-
-    /* Deep red focus ring */
-    --ring: 0 75% 50%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 0 0% 83.1%;
   }
 }
 
@@ -97,64 +104,30 @@
     position: relative;
   }
 
-  /* Adaptive gradient mesh background - Dark theme */
-  .dark body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background:
-      radial-gradient(circle at 20% 50%, hsl(0 0% 18% / 0.4) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, hsl(0 0% 15% / 0.3) 0%, transparent 50%),
-      radial-gradient(circle at 40% 80%, hsl(0 0% 20% / 0.3) 0%, transparent 50%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  /* Light theme warm gradient mesh */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background:
-      radial-gradient(circle at 20% 50%, hsl(30 50% 90% / 0.5) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, hsl(25 60% 88% / 0.4) 0%, transparent 50%),
-      radial-gradient(circle at 40% 80%, hsl(35 45% 92% / 0.4) 0%, transparent 50%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  /* Grain texture overlay - Light theme */
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.035'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 9999;
-    mix-blend-mode: multiply;
-    opacity: 0.4;
-  }
-
-  /* Grain texture overlay - Dark theme */
-  .dark body::after {
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.025'/%3E%3C/svg%3E");
-    mix-blend-mode: overlay;
-    opacity: 1;
-  }
+  /* Removed legacy gradient meshes and noise filters to ensure clean Technical look */
 
   @keyframes meshFloat {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: translate(0, 0) scale(1);
     }
+
     33% {
       transform: translate(30px, -30px) scale(1.05);
     }
+
     66% {
       transform: translate(-20px, 20px) scale(0.95);
     }
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: 'Syne', sans-serif;
     font-weight: 700;
     letter-spacing: -0.04em;
@@ -162,6 +135,7 @@
 }
 
 @layer utilities {
+
   /* Refined subtle shadows - dark theme */
   .dark .shadow-refined {
     box-shadow:
@@ -237,11 +211,9 @@
 
   /* Glass morphism grayscale */
   .glass-vibrant {
-    background: linear-gradient(
-      135deg,
-      hsl(var(--card) / 0.7) 0%,
-      hsl(var(--card) / 0.5) 100%
-    );
+    background: linear-gradient(135deg,
+        hsl(var(--card) / 0.7) 0%,
+        hsl(var(--card) / 0.5) 100%);
     backdrop-filter: blur(24px) saturate(120%);
     border: 1px solid hsl(var(--border) / 0.6);
   }
@@ -262,12 +234,10 @@
 
   /* Adaptive gradient text - dark theme */
   .dark .text-gradient-vibrant {
-    background: linear-gradient(
-      120deg,
-      hsl(0 0% 98%) 0%,
-      hsl(0 0% 80%) 50%,
-      hsl(0 0% 98%) 100%
-    );
+    background: linear-gradient(120deg,
+        hsl(0 0% 98%) 0%,
+        hsl(0 0% 80%) 50%,
+        hsl(0 0% 98%) 100%);
     background-size: 200% 200%;
     -webkit-background-clip: text;
     background-clip: text;
@@ -277,12 +247,10 @@
 
   /* Adaptive gradient text - light theme */
   .text-gradient-vibrant {
-    background: linear-gradient(
-      120deg,
-      hsl(25 60% 35%) 0%,
-      hsl(30 70% 50%) 50%,
-      hsl(25 60% 35%) 100%
-    );
+    background: linear-gradient(120deg,
+        hsl(25 60% 35%) 0%,
+        hsl(30 70% 50%) 50%,
+        hsl(25 60% 35%) 100%);
     background-size: 200% 200%;
     -webkit-background-clip: text;
     background-clip: text;
@@ -291,46 +259,45 @@
   }
 
   @keyframes gradientShift {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
   }
 
   /* Dark theme gradient backgrounds */
   .dark .bg-twilight-gradient {
-    background: linear-gradient(
-      135deg,
-      hsl(0 0% 16% / 0.5) 0%,
-      hsl(0 0% 18% / 0.3) 50%,
-      hsl(0 0% 20% / 0.4) 100%
-    );
+    background: linear-gradient(135deg,
+        hsl(0 0% 16% / 0.5) 0%,
+        hsl(0 0% 18% / 0.3) 50%,
+        hsl(0 0% 20% / 0.4) 100%);
   }
 
   .dark .bg-cosmic-gradient {
-    background: linear-gradient(
-      135deg,
-      hsl(0 0% 98%) 0%,
-      hsl(0 0% 90%) 50%,
-      hsl(0 0% 98%) 100%
-    );
+    background: linear-gradient(135deg,
+        hsl(0 0% 98%) 0%,
+        hsl(0 0% 90%) 50%,
+        hsl(0 0% 98%) 100%);
   }
 
   /* Light theme warm gradient backgrounds */
   .bg-twilight-gradient {
-    background: linear-gradient(
-      135deg,
-      hsl(30 50% 90% / 0.6) 0%,
-      hsl(25 60% 88% / 0.4) 50%,
-      hsl(35 45% 92% / 0.5) 100%
-    );
+    background: linear-gradient(135deg,
+        hsl(30 50% 90% / 0.6) 0%,
+        hsl(25 60% 88% / 0.4) 50%,
+        hsl(35 45% 92% / 0.5) 100%);
   }
 
   .bg-cosmic-gradient {
-    background: linear-gradient(
-      135deg,
-      hsl(25 60% 45%) 0%,
-      hsl(30 70% 60%) 50%,
-      hsl(25 60% 45%) 100%
-    );
+    background: linear-gradient(135deg,
+        hsl(25 60% 45%) 0%,
+        hsl(30 70% 60%) 50%,
+        hsl(25 60% 45%) 100%);
   }
 
   /* Geometric pattern overlay */
@@ -353,6 +320,7 @@
       opacity: 0;
       transform: translateY(20px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -364,6 +332,7 @@
       opacity: 0;
       transform: translateX(-30px);
     }
+
     to {
       opacity: 1;
       transform: translateX(0);
@@ -375,6 +344,7 @@
       opacity: 0;
       transform: scale(0.9);
     }
+
     to {
       opacity: 1;
       transform: scale(1);
@@ -394,23 +364,49 @@
   }
 
   /* Stagger delays */
-  .delay-75 { animation-delay: 0.075s; }
-  .delay-100 { animation-delay: 0.1s; }
-  .delay-150 { animation-delay: 0.15s; }
-  .delay-200 { animation-delay: 0.2s; }
-  .delay-300 { animation-delay: 0.3s; }
-  .delay-400 { animation-delay: 0.4s; }
-  .delay-500 { animation-delay: 0.5s; }
-  .delay-600 { animation-delay: 0.6s; }
+  .delay-75 {
+    animation-delay: 0.075s;
+  }
+
+  .delay-100 {
+    animation-delay: 0.1s;
+  }
+
+  .delay-150 {
+    animation-delay: 0.15s;
+  }
+
+  .delay-200 {
+    animation-delay: 0.2s;
+  }
+
+  .delay-300 {
+    animation-delay: 0.3s;
+  }
+
+  .delay-400 {
+    animation-delay: 0.4s;
+  }
+
+  .delay-500 {
+    animation-delay: 0.5s;
+  }
+
+  .delay-600 {
+    animation-delay: 0.6s;
+  }
 
   /* Magnetic button effect */
   @keyframes magneticPulse {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: scale(1);
       box-shadow:
         0 4px 16px rgba(0, 0, 0, 0.5),
         0 0 32px rgba(255, 255, 255, 0.03);
     }
+
     50% {
       transform: scale(1.02);
       box-shadow:
@@ -428,26 +424,32 @@
     0% {
       background-position: -200% center;
     }
+
     100% {
       background-position: 200% center;
     }
   }
 
   .shimmer {
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.1) 50%,
-      transparent 100%
-    );
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.1) 50%,
+        transparent 100%);
     background-size: 200% 100%;
     animation: shimmer 3s ease-in-out infinite;
   }
 
   /* Bounce on hover */
   @keyframes bounceIn {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-4px);
+    }
   }
 
   .animate-bounce-hover:hover {
@@ -456,11 +458,14 @@
 
   /* Glow pulse */
   @keyframes glowPulse {
-    0%, 100% {
+
+    0%,
+    100% {
       box-shadow:
         0 0 20px rgba(255, 255, 255, 0.05),
         inset 0 0 20px rgba(255, 255, 255, 0.02);
     }
+
     50% {
       box-shadow:
         0 0 40px rgba(255, 255, 255, 0.1),
@@ -486,7 +491,11 @@
   }
 
   /* Keep interactive elements snappy */
-  button, a, input, select, textarea {
+  button,
+  a,
+  input,
+  select,
+  textarea {
     transition:
       background-color 0.3s ease,
       color 0.3s ease,

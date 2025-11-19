@@ -133,7 +133,7 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ currentView, onN
                 ? 'bg-muted/50 text-foreground'
                 : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'
             }`}
-          >
+          > 
             {currentView === 'dashboard' && (
               <span className="absolute left-0 top-1/2 -translate-y-1/2" style={{ color: 'hsl(var(--primary))' }}>▸</span>
             )}
@@ -203,14 +203,14 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ currentView, onN
 
           <button
             onClick={() => onNavigate('symbols')}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition text-left relative ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition text-left relative mb-3 ${
               currentView === 'symbols'
                 ? 'bg-muted/50 text-foreground'
                 : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'
             }`}
           >
             {currentView === 'symbols' && (
-              <span className="absolute left-0 top-1/2 -translate-y-1/2" style={{ color: 'hsl(var(--primary))' }}>▸</span>
+              <span className="absolute left-0 top-0 -translate-y-1/2" style={{ color: 'hsl(var(--primary))' }}>▸</span>
             )}
             <Code className="h-4 w-4" />
             <span className="text-sm">Symbols</span>

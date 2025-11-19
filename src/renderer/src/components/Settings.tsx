@@ -27,6 +27,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { analytics } from "../services/analytics";
+import { ApiKeySettings } from "./pro/ApiKeySettings";
+import { LicenseManagement } from "./pro/LicenseManagement";
 
 interface AppSettings {
   theme: "light" | "dark" | "system";
@@ -345,6 +347,11 @@ export function Settings() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Guru Pro */}
+        <LicenseManagement />
+
+        <ApiKeySettings />
 
         {/* About */}
         <Card>

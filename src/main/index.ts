@@ -7,12 +7,21 @@ import { aiModelService } from './ai-model-service'
 import { vectorStoreService } from './vector-store-service'
 import { wasmVM } from './wasm-vm'
 
+import { natsService } from './services/nats-service'
+import { happenManager } from './services/happen/happen-manager'
+
 // electron-vite automatically provides __dirname via import.meta.dirname
 const __dirname = import.meta.dirname
 
 async function createWindow() {
   // Initialize services
   try {
+    await natsService.start()
+    console.log('NATS Server initialized')
+
+    // Initialize Happen Nodes (after NATS is up)
+    await happenManager.initialize()
+
     await lanceDBManager.connect()
     console.log('LanceDB initialized successfully')
 
@@ -21,7 +30,7 @@ async function createWindow() {
   } catch (error) {
     console.error('Failed to initialize core services:', error)
   }
-  
+
   // Initialize AI Service (with graceful fallback)
   try {
     await aiModelService.initialize()
@@ -29,13 +38,13 @@ async function createWindow() {
     console.error('AI Service initialization error:', error.message)
     // Continue anyway - it will use fallback mode
   }
-  
+
   // Register IPC handlers
   registerIPCHandlers()
-  
+
   const preloadPath = join(__dirname, '../preload/index.mjs')
   console.log('Preload path:', preloadPath)
-  
+
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -76,6 +85,7 @@ app.on('window-all-closed', () => {
 app.on('quit', async () => {
   // Cleanup services
   cleanupIPCHandlers()
+  natsService.stop()
   await wasmVM.cleanup()
   await aiModelService.cleanup()
   await vectorStoreService.cleanup()

@@ -73,19 +73,31 @@ class LanceDBManager {
 
   private async initializeTables(): Promise<void> {
     const db = await this.connect();
-    
-    try {
-      // Check if tables exist by trying to open them
-      await db.openTable('memories');
-      await db.openTable('patterns');
-      await db.openTable('insights');
+
+    // Check each table individually and create if missing
+    const tablesToCheck = ['memories', 'patterns', 'insights', 'document_chunks'];
+    const missingTables: string[] = [];
+
+    for (const tableName of tablesToCheck) {
+      try {
+        await db.openTable(tableName);
+      } catch (error) {
+        missingTables.push(tableName);
+      }
+    }
+
+    if (missingTables.length === 0) {
       console.log('LanceDB tables already exist');
-    } catch (error) {
-      // Tables don't exist, create them
-      console.log('Creating LanceDB tables...');
-      
-      // Create memories table with layers
-      await db.createTable('memories', [
+      return;
+    }
+
+    console.log('Creating missing LanceDB tables:', missingTables);
+
+    try {
+      // Create missing tables
+      if (missingTables.includes('memories')) {
+        // Create memories table with layers
+        await db.createTable('memories', [
         {
           id: 'mem-init',
           type: 'system',
@@ -104,9 +116,11 @@ class LanceDBManager {
           metadata: JSON.stringify({})
         }
       ]);
+      }
 
-      // Create patterns table
-      await db.createTable('patterns', [
+      if (missingTables.includes('patterns')) {
+        // Create patterns table
+        await db.createTable('patterns', [
         {
           id: 'pat-init',
           pattern_type: 'system',
@@ -118,9 +132,11 @@ class LanceDBManager {
           metadata: JSON.stringify({})
         }
       ]);
+      }
 
-      // Create insights table
-      await db.createTable('insights', [
+      if (missingTables.includes('insights')) {
+        // Create insights table
+        await db.createTable('insights', [
         {
           id: 'ins-init',
           insight_text: 'System initialized',
@@ -132,9 +148,11 @@ class LanceDBManager {
           metadata: JSON.stringify({})
         }
       ]);
+      }
 
-      // Create document_chunks table for indexed documents
-      await db.createTable('document_chunks', [
+      if (missingTables.includes('document_chunks')) {
+        // Create document_chunks table for indexed documents
+        await db.createTable('document_chunks', [
         {
           id: 'chunk-init',
           document_id: 'doc-init',
@@ -150,8 +168,11 @@ class LanceDBManager {
           metadata: JSON.stringify({})
         }
       ]);
-      
+      }
+
       console.log('LanceDB tables created successfully');
+    } catch (error) {
+      console.error('Error creating tables:', error);
     }
   }
 
@@ -165,10 +186,13 @@ class LanceDBManager {
         .search(vector)
         .select(['id', 'type', 'content', 'timestamp', 'confidence', 'context', 'tags', 'metadata'])
         .limit(limit)
-        .execute();
+        .toArray();
+
+      // Convert results to array if it's not already
+      const resultsArray = Array.isArray(results) ? results : Array.from(results as any);
 
       // Convert to plain objects for IPC serialization
-      return results.map((r: any) => ({
+      return resultsArray.map((r: any) => ({
         id: r.id,
         type: r.type,
         content: r.content,
@@ -194,20 +218,23 @@ class LanceDBManager {
   async trackPattern(pattern: Pattern): Promise<void> {
     const db = await this.connect();
     const table = await db.openTable('patterns');
-    
+
     try {
       // Check if pattern exists and update frequency
-      const existing = await table
+      const results = await table
         .search(pattern.vector)
         .limit(1)
-        .execute();
-      
+        .toArray();
+
+      // Convert results to array if it's not already
+      const existing = Array.isArray(results) ? results : Array.from(results as any);
+
       if (existing.length > 0) {
         // Update existing pattern
         pattern.frequency = (existing[0].frequency || 0) + 1;
         pattern.last_seen = Date.now();
       }
-      
+
       await table.add([pattern]);
       console.log('Pattern tracked:', pattern.id);
     } catch (error) {
@@ -225,10 +252,13 @@ class LanceDBManager {
 
     try {
       // Get all memories (limited to recent 200)
-      const memories = await memTable
+      const results = await memTable
         .search(Array(384).fill(0))
         .limit(200)
-        .execute() as Memory[];
+        .toArray();
+
+      // Convert results to array if it's not already
+      const memories = (Array.isArray(results) ? results : Array.from(results as any)) as Memory[];
 
       if (memories.length === 0) {
         return insights;
@@ -406,10 +436,10 @@ class LanceDBManager {
         .search(Array(384).fill(0))
         .filter('dismissed = false')
         .limit(20)
-        .execute();
+        .toArray();
 
-      // Ensure results is an array before mapping
-      const resultsArray = Array.isArray(results) ? results : [];
+      // Convert results to array if it's not already
+      const resultsArray = Array.isArray(results) ? results : Array.from(results as any);
 
       // Convert to plain objects for IPC serialization
       return resultsArray.map((r: any) => ({
@@ -463,17 +493,17 @@ class LanceDBManager {
     file_type: string;
     title: string;
     chunk_tokens: number;
-    metadata: Record<string, any>;
+    metadata: string;
   }): Promise<void> {
     const db = await this.connect();
     const table = await db.openTable('document_chunks');
-    
+
     const chunkRecord = {
       id: `${chunk.document_id}-${chunk.chunk_id}`,
       ...chunk,
       created_at: Date.now()
     };
-    
+
     await table.add([chunkRecord]);
     console.log('Document chunk added:', chunkRecord.id);
   }
@@ -484,39 +514,133 @@ class LanceDBManager {
   } = {}): Promise<any[]> {
     const db = await this.connect();
     const table = await db.openTable('document_chunks');
-    
+
     try {
       let search = table
         .search(vector)
-        .select(['id', 'document_id', 'chunk_id', 'content', 'position', 'file_path', 'file_type', 'title', 'metadata'])
+        .select(['id', 'document_id', 'chunk_id', 'content', 'position', 'file_path', 'file_type', 'title', 'created_at', 'chunk_tokens', 'metadata'])
         .limit(options.maxResults || 20);
-      
+
       // Filter by file type if specified
       if (options.fileTypes && options.fileTypes.length > 0) {
         const typeFilter = options.fileTypes.map(t => `file_type = '${t}'`).join(' OR ');
         search = search.filter(typeFilter);
       }
-      
-      const results = await search.execute();
-      return results;
+
+      const results = await search.toArray();
+
+      // Convert to plain objects for IPC serialization
+      return results.map((r: any) => ({
+        id: r.id,
+        document_id: r.document_id,
+        chunk_id: r.chunk_id,
+        content: r.content,
+        position: r.position,
+        file_path: r.file_path,
+        file_type: r.file_type,
+        title: r.title,
+        created_at: r.created_at,
+        chunk_tokens: r.chunk_tokens,
+        metadata: r.metadata || '{}'
+      }));
     } catch (error) {
       console.error('Error searching documents:', error);
       return [];
     }
   }
 
+  async getAllDocuments(): Promise<any[]> {
+    const db = await this.connect();
+    const table = await db.openTable('document_chunks');
+
+    try {
+      // Count total rows first to see if we have data
+      const rowCount = await table.countRows();
+      console.log('Total document chunks in database:', rowCount);
+
+      if (rowCount === 0) {
+        return [];
+      }
+
+      // Use .toArray() to get results as plain JavaScript objects
+      const results = await table
+        .search(Array(384).fill(0))
+        .select(['id', 'document_id', 'chunk_id', 'content', 'position', 'file_path', 'file_type', 'title', 'created_at', 'chunk_tokens', 'metadata'])
+        .limit(Math.min(rowCount, 1000))
+        .toArray();
+
+      console.log('Search results length:', results.length);
+      if (results.length > 0) {
+        console.log('First result:', results[0]);
+      }
+
+      // Convert to plain objects for IPC serialization
+      return results.map((r: any) => ({
+        id: r.id,
+        document_id: r.document_id,
+        chunk_id: r.chunk_id,
+        content: r.content,
+        position: r.position,
+        file_path: r.file_path,
+        file_type: r.file_type,
+        title: r.title,
+        created_at: r.created_at,
+        chunk_tokens: r.chunk_tokens,
+        metadata: r.metadata || '{}'
+      }));
+    } catch (error) {
+      console.error('Error getting all documents:', error);
+      return [];
+    }
+  }
+
+  async deleteDocument(documentId: string): Promise<void> {
+    const db = await this.connect();
+    const table = await db.openTable('document_chunks');
+
+    try {
+      console.log('Deleting document:', documentId);
+
+      // Use LanceDB's built-in delete method with SQL filter
+      await table.delete(`document_id = '${documentId}'`);
+
+      console.log('Document deleted successfully');
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      throw error;
+    }
+  }
+
   async getDocumentChunks(documentId: string): Promise<any[]> {
     const db = await this.connect();
     const table = await db.openTable('document_chunks');
-    
+
     try {
       const results = await table
         .search(Array(384).fill(0))
         .filter(`document_id = '${documentId}'`)
         .limit(1000)
-        .execute();
-      
-      return results.sort((a: any, b: any) => a.position - b.position);
+        .toArray();
+
+      // Convert results to array if it's not already
+      const resultsArray = Array.isArray(results) ? results : Array.from(results as any);
+
+      // Convert to plain objects for IPC serialization
+      const serialized = resultsArray.map((r: any) => ({
+        id: r.id,
+        document_id: r.document_id,
+        chunk_id: r.chunk_id,
+        content: r.content,
+        position: r.position,
+        file_path: r.file_path,
+        file_type: r.file_type,
+        title: r.title,
+        created_at: r.created_at,
+        chunk_tokens: r.chunk_tokens,
+        metadata: r.metadata || '{}'
+      }));
+
+      return serialized.sort((a: any, b: any) => a.position - b.position);
     } catch (error) {
       console.error('Error getting document chunks:', error);
       return [];
