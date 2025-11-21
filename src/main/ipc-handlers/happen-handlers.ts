@@ -32,8 +32,8 @@ export function registerHappenHandlers() {
         }
     });
 
-    ipcMain.handle('happen:shadow:approve', async (_, { actionId }) => {
-        return await shadowService.approveAction(actionId);
+    ipcMain.handle('happen:shadow:approve', async (_, { actionId, modifiedContent }) => {
+        return await shadowService.approveAction(actionId, modifiedContent);
     });
 
     ipcMain.handle('happen:shadow:reject', (_, { actionId }) => {

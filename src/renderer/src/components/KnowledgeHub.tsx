@@ -5,10 +5,11 @@ import { knowledgeBaseStorage } from '../services/knowledge-base-storage';
 import { documentGroupsStorage } from '../services/document-groups-storage';
 import { fileService } from '../services/file-service';
 import { CreateKBDialog } from './CreateKBDialog';
+import { WebIndexerDialog } from './knowledge/WebIndexerDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Database, Clock, Upload, Trash2, Plus, Search, FolderOpen, ArrowUpDown, LucideArrowUpDown, ArrowLeft, Cross, Delete, RemoveFormatting, DeleteIcon, Eye, GitBranch, Network, List } from 'lucide-react';
+import { FileText, Database, Clock, Upload, Trash2, Plus, Search, FolderOpen, ArrowUpDown, LucideArrowUpDown, ArrowLeft, Cross, Delete, RemoveFormatting, DeleteIcon, Eye, GitBranch, Network, List, Globe } from 'lucide-react';
 import { UnifiedContextGraph } from './UnifiedContextGraph';
 import { DocumentPreview } from './DocumentPreview';
 import { DocumentOrganizer } from './DocumentOrganizer';
@@ -27,17 +28,10 @@ interface KnowledgeHubProps {
 export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, setIsLoading }: KnowledgeHubProps) {
   const [selectedKB, setSelectedKB] = useState<string | null>(null);
   const [showCreateKBDialog, setShowCreateKBDialog] = useState(false);
+  const [showWebIndexer, setShowWebIndexer] = useState(false);
   const [ragQuery, setRagQuery] = useState('');
   const [ragResults, setRagResults] = useState<QueryResult | null>(null);
-  const [kbDocuments, setKbDocuments] = useState<Record<string, Array<{
-    id: string;
-    filename: string;
-    category: string;
-    sizeBytes: number;
-    wordCount: number;
-    addedAt: Date;
-    metadata?: any;
-  }>>>({});
+  const [kbDocuments, setKbDocuments] = useState<Record<string, Array<{\n    id: string;\n    filename: string;\n    category: string;\n    sizeBytes: number;\n    wordCount: number;\n    addedAt: Date;\n    metadata?: any;\n  }>>>({});
   const [showDocumentBrowser, setShowDocumentBrowser] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'resources' | 'specs' | 'prompts'>('resources');
@@ -62,17 +56,14 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
     const handleProjectSwitch = () => {
       // Reset state when project switches
       setSelectedKB(null);
-      setKnowledgeBases([]);
-      setKbDocuments({});
+      setKnowledgeBases([]);\n      setKbDocuments({});
       // Reload data
-      loadCurrentProject();
-    };
+      loadCurrentProject();\n    };
     
     window.addEventListener('project-switched', handleProjectSwitch);
     return () => {
       window.removeEventListener('project-switched', handleProjectSwitch);
-    };
-  }, []);
+    };\n  }, []);
 
   // Load documents for selected KB
   useEffect(() => {
@@ -88,8 +79,7 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
     } catch (error) {
       console.error('Failed to load current project:', error);
     }
-  };
-
+  };\n
   const loadKnowledgeBasesFromStorage = async () => {
     if (!currentProject) return;
     
@@ -104,8 +94,7 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
     } catch (error) {
       console.error('Failed to load knowledge bases from storage:', error);
     }
-  };
-
+  };\n
   const loadDocumentsFromStorage = async () => {
     try {
       // Load all documents and organize by KB
@@ -116,45 +105,22 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
         if (!docsByKB[doc.knowledgeBaseId]) {
           docsByKB[doc.knowledgeBaseId] = [];
         }
-        docsByKB[doc.knowledgeBaseId].push({
-          id: doc.id,
-          filename: doc.filename,
-          category: doc.category,
-          sizeBytes: 0,
-          wordCount: 0,
-          addedAt: new Date(doc.addedAt),
-          metadata: doc.metadata
-        });
-      });
+        docsByKB[doc.knowledgeBaseId].push({\n          id: doc.id,\n          filename: doc.filename,\n          category: doc.category,\n          sizeBytes: 0,\n          wordCount: 0,\n          addedAt: new Date(doc.addedAt),\n          metadata: doc.metadata\n        });\n      });
 
       setKbDocuments(docsByKB);
     } catch (error) {
       console.error('Failed to load documents from storage:', error);
     }
-  };
-
+  };\n
   const loadKBDocumentsFromStorage = async (kbId: string) => {
     try {
       const docs = await documentStorage.getDocumentsByKB(kbId);
-      const formattedDocs = docs.map(doc => ({
-        id: doc.id,
-        filename: doc.filename,
-        category: doc.category,
-        sizeBytes: 0,
-        wordCount: 0,
-        addedAt: new Date(doc.addedAt),
-        metadata: doc.metadata
-      }));
+      const formattedDocs = docs.map(doc => ({\n        id: doc.id,\n        filename: doc.filename,\n        category: doc.category,\n        sizeBytes: 0,\n        wordCount: 0,\n        addedAt: new Date(doc.addedAt),\n        metadata: doc.metadata\n      }));
 
-      setKbDocuments(prev => ({
-        ...prev,
-        [kbId]: formattedDocs
-      }));
-    } catch (error) {
+      setKbDocuments(prev => ({\n        ...prev,\n        [kbId]: formattedDocs\n      }));\n    } catch (error) {
       console.error('Failed to load KB documents from storage:', error);
     }
-  };
-
+  };\n
 
   const handleDeleteDocument = async (documentId: string) => {
     if (!selectedKB) return;
@@ -164,17 +130,10 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
       await documentStorage.deleteDocument(documentId);
 
       // Update local state
-      setKbDocuments(prevDocs => ({
-        ...prevDocs,
-        [selectedKB]: (prevDocs[selectedKB] || []).filter(doc => doc.id !== documentId)
-      }));
-
+      setKbDocuments(prevDocs => ({\n        ...prevDocs,\n        [selectedKB]: (prevDocs[selectedKB] || []).filter(doc => doc.id !== documentId)\n      }));\n
       // Update KB document count in storage
       const newCount = Math.max(0, (kbDocuments[selectedKB] || []).length - 1);
-      await knowledgeBaseStorage.updateKnowledgeBase(selectedKB, {
-        documentCount: newCount
-      });
-
+      await knowledgeBaseStorage.updateKnowledgeBase(selectedKB, {\n        documentCount: newCount\n      });\n
       // Update local state
       setKnowledgeBases(knowledgeBases.map(kb =>
         kb.id === selectedKB
@@ -187,15 +146,14 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
       console.error('Failed to remove document:', error);
       analytics.trackError(error as Error, 'delete_document');
     }
-  };
-
+  };\n
   const handleDeleteKnowledgeBase = async (kbId: string, event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent card click
 
     const kb = knowledgeBases.find(k => k.id === kbId);
     if (!kb) return;
 
-    if (!confirm(`Delete knowledge base "${kb.name}"?\n\nThis will remove the knowledge base and all its documents from your local index.`)) {
+    if (!confirm(`Delete knowledge base \"${kb.name}\"?\\n\\nThis will remove the knowledge base and all its documents from your local index.`)) {
       return;
     }
 
@@ -211,8 +169,7 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
       setKbDocuments(prevDocs => {
         const newDocs = { ...prevDocs };
         delete newDocs[kbId];
-        return newDocs;
-      });
+        return newDocs;\n      });
 
       // If we just deleted the selected KB, deselect it
       if (selectedKB === kbId) {
@@ -225,8 +182,7 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
       alert('Failed to delete knowledge base');
       analytics.trackError(error as Error, 'delete_kb');
     }
-  };
-
+  };\n
   const handleFileUpload = async () => {
     if (!selectedKB) return;
 
@@ -259,8 +215,7 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
             ...kb,
             documentCount: (kb.documentCount || 0) + result.count
           };
-        }
-        return kb;
+        }\n        return kb;
       });
       setKnowledgeBases(updatedKBs);
       await knowledgeBaseStorage.updateKnowledgeBase(selectedKB, {
@@ -276,8 +231,7 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
     } finally {
       setIsLoading(false);
     }
-  };
-
+  };\n
 
 
 
@@ -290,21 +244,13 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
       console.error('Failed to get document content:', error);
       return null;
     }
-  };
-
+  };\n
   const handleRAGQuery = async () => {
     if (!selectedKB || !ragQuery.trim()) return;
 
     setIsLoading(true);
     try {
-      const result = await guruService.queryKnowledgeBase(
-        selectedKB,
-        ragQuery,
-        {
-          includeCognitiveInsights: true,
-          responseMode: 'comprehensive'
-        }
-      );
+      const result = await guruService.queryKnowledgeBase(\n        selectedKB,\n        ragQuery,\n        {\n          includeCognitiveInsights: true,\n          responseMode: 'comprehensive'\n        }\n      );
       setRagResults(result);
       analytics.trackSearch(ragQuery, result.sources?.length || 0, 'rag_query');
     } catch (error) {
@@ -312,16 +258,12 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
       analytics.trackError(error as Error, 'rag_query');
     }
     setIsLoading(false);
-  };
-
+  };\n
   const selectedKBData = knowledgeBases.find(kb => kb.id === selectedKB);
 
   const handleCreateProject = async () => {
     try {
-      const project = await projectStorage.createProject(
-        'New Project',
-        'A workspace for your knowledge management'
-      );
+      const project = await projectStorage.createProject(\n        'New Project',\n        'A workspace for your knowledge management'\n      );
       await projectStorage.setCurrentProject(project.id);
       setCurrentProject(project);
       // Trigger reload
@@ -329,8 +271,7 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
     } catch (error) {
       console.error('Failed to create project:', error);
     }
-  };
-
+  };\n
   const handleOpenProject = async () => {
     try {
       const projects = await projectStorage.getAllProjects();
@@ -342,339 +283,22 @@ export function KnowledgeHub({ knowledgeBases, setKnowledgeBases, isLoading, set
     } catch (error) {
       console.error('Failed to open project:', error);
     }
-  };
-
+  };\n
   // Check if we have a project
   if (!currentProject) {
-    return (
-      <div className="flex h-full items-center justify-center p-6">
-        <Card className="max-w-2xl w-full animate-scale-in">
-          <CardContent className="p-12 text-center">
-            {/* Icon with glow */}
-            <div className="relative inline-block mb-6">
-              <div className="absolute -inset-4 bg-white/5 rounded-full blur-2xl animate-glow-pulse" />
-              <div className="relative w-24 h-24 mx-auto rounded-3xl bg-muted border-2 border-foreground/20 flex items-center justify-center shadow-cosmic-lg">
-                <FolderOpen className="h-12 w-12 text-foreground/80" />
-              </div>
-            </div>
-
-            <h3 className="text-2xl font-bold mb-3 animate-fade-in">No Project Selected</h3>
-            <p className="text-sm text-muted-foreground mb-8 max-w-md mx-auto animate-fade-in delay-100">
-              Create or select a project to organize your knowledge bases, specifications, and AI prompts in one unified workspace.
-            </p>
-
-            {/* Action buttons */}
-            <div className="flex gap-3 justify-center animate-fade-in delay-200">
-              <Button size="lg" className="gap-2" variant="outline" onClick={handleCreateProject}>
-                <Plus className="h-4 w-4" />
-                Create Project
-              </Button>
-              <Button size="lg" variant="outline" className="gap-2" onClick={handleOpenProject}>
-                <FolderOpen className="h-4 w-4" />
-                Open Project
-              </Button>
-            </div>
-
-            {/* Features list */}
-            <div className="mt-12 pt-8 border-t border-border/50 grid grid-cols-3 gap-6 text-left animate-fade-in delay-300">
-              <div className="space-y-2">
-                <Database className="h-5 w-5 text-foreground/60 mb-2" />
-                <h4 className="font-semibold text-sm">Knowledge Bases</h4>
-                <p className="text-xs text-muted-foreground">Organize documents and resources</p>
-              </div>
-              <div className="space-y-2">
-                <GitBranch className="h-5 w-5 text-foreground/60 mb-2" />
-                <h4 className="font-semibold text-sm">Specifications</h4>
-                <p className="text-xs text-muted-foreground">Define system behavior</p>
-              </div>
-              <div className="space-y-2">
-                <FileText className="h-5 w-5 text-foreground/60 mb-2" />
-                <h4 className="font-semibold text-sm">Prompts</h4>
-                <p className="text-xs text-muted-foreground">Reusable AI templates</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex-1 overflow-y-auto px-6 pt-12">
-      {/* Header */}
-      <div className='flex justify-between my-2 shrink-0'>
-        <div className="flex justify-between shrink-0">
-          <div className='flex items-start gap-2 flex-col'>
-            {selectedKB && activeTab === 'resources' && (
-              <button
-                onClick={() => setSelectedKB(null)}
-                className="gap-2 transition-colors mb-4"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-            )}
-            <h2 className="text-2xl font-light tracking-tight text-left">
-              {activeTab === 'resources' ? selectedKBData?.name || 'Knowledge Management' : 'System Specifications'}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1 text-left mb-4">
-              {activeTab === 'resources' 
-                ? (selectedKBData?.description || 'Organize and manage your knowledge resources')
-                : 'Define core system behavior and constraints'
-              }
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          {!selectedKB && activeTab === 'resources' && <Button
-            onClick={() => setShowCreateKBDialog(true)}
-            size="sm"
-            variant="outline"
-          >
-            <Plus className="h-3 w-3 mr-1" />
-            New Knowledge Base
-          </Button>}
-        </div>
-      </div>
-
-      {/* Main Content */}
-      {
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex flex-col shrink-0 mb-6">
-          <TabsList className="mb-6 shrink-0 border-b border-border/40 pb-0">
-            <TabsTrigger value="resources">
-              <Database className="h-3 w-3 mr-1" />
-              Resources
-            </TabsTrigger>
-            <TabsTrigger value="specs">
-              <GitBranch className="h-3 w-3 mr-1" />
-              Specifications
-            </TabsTrigger>
-            <TabsTrigger value="prompts">
-              <FileText className="h-3 w-3 mr-1" />
-              Prompts
-            </TabsTrigger>
-          </TabsList>
-
-        {/* Resources Tab */}
-        <TabsContent value="resources" className="mt-0">
-          <div className="w-full">
-              {/* Show KB list when no KB is selected */}
-              {!selectedKB && knowledgeBases.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-6">
-                  {knowledgeBases.map((kb) => (
-                    <Card
-                      key={kb.id}
-                      className={`cursor-pointer transition-all border-muted hover:border-muted-foreground/20`}
-                      onClick={() => setSelectedKB(kb.id)}
-                    >
-                      <CardHeader className="pb-3 relative">
-                        <button
-                          onClick={(e) => handleDeleteKnowledgeBase(kb.id, e)}
-                          className="absolute top-4 right-4 p-1 rounded hover:bg-destructive/20 transition-colors"
-                          title="Delete knowledge base"
-                        >
-                          <Delete className="h-3 w-3" />
-                        </button>
-                        <CardTitle className="text-base font-normal">{kb.name}</CardTitle>
-                        <CardDescription className="text-xs">{kb.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2 text-xs text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-3 w-3" />
-                            <span>{kb.documentCount} documents</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-3 w-3" />
-                            <span>Updated: {new Date(kb.lastUpdated).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-
-              {/* Info Box */}
-              {knowledgeBases.length === 0 && (
-                <div className="flex h-full justify-center items-center">
-                  <Card className="border-muted max-w-xl mx-auto">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base font-normal">Getting Started</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Knowledge bases are your personal document repositories. They store your files persistently and allow AI to answer questions based on their content.
-                      </p>
-                      <Button
-                        onClick={() => setShowCreateKBDialog(true)}
-                        className="w-full"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Your First Knowledge Base
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {/* KB Selected View with Tabs */}
-              {selectedKBData && selectedKB && (
-                <Tabs value={resourceView} onValueChange={(v) => setResourceView(v as any)} className="flex flex-col">
-                  <TabsList className="mb-6 shrink-0 border-b border-border/40 pb-0">
-                    <TabsTrigger value="documents">
-                      <FileText className="h-3 w-3 mr-1" />
-                      Documents
-                    </TabsTrigger>
-                    <TabsTrigger value="graph">
-                      <Network className="h-3 w-3 mr-1" />
-                      Context Graph
-                    </TabsTrigger>
-                  </TabsList>
-
-                  {/* Documents Tab */}
-                  <TabsContent value="documents" className="mt-0">
-                    <div className="space-y-4 pb-6">
-                      <Card className="border-muted">
-                        <CardHeader className='flex flex-row justify-between items-center'>
-                          <CardTitle className="text-lg font-normal">Documents</CardTitle>
-                          <CardDescription className="text-xs"><em>Click to preview</em></CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex flex-col gap-4">
-                          {/* Document Organizer */}
-                          <DocumentOrganizer
-                            knowledgeBaseId={selectedKB}
-                            documents={kbDocuments[selectedKB] || []}
-                            onDocumentSelect={setSelectedDocument}
-                            onDocumentDelete={handleDeleteDocument}
-                            onDocumentToggle={() => {
-                              loadKBDocumentsFromStorage(selectedKB);
-                            }}
-                            onGroupsChange={() => {
-                              loadKBDocumentsFromStorage(selectedKB);
-                            }}
-                          />
-
-                          {/* Upload Button */}
-                          <div className='flex justify-end mt-4'>
-                            <Button
-                              onClick={handleFileUpload}
-                              size="sm"
-                              variant="outline"
-                              disabled={isLoading}
-                            >
-                              <Plus className="h-3 w-3 mr-1" />
-                              Add Documents
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </TabsContent>
-
-                  {/* Graph View Tab */}
-                  <TabsContent value="graph" className="mt-0">
-                    <UnifiedContextGraph
-                      knowledgeGroups={kbDocuments[selectedKB]?.map(doc => ({
-                        id: doc.id,
-                        name: doc.filename,
-                        documents: [],
-                        metadata: doc.metadata
-                      })) || []}
-                      onToggleNode={() => {
-                        loadKBDocumentsFromStorage(selectedKB);
-                      }}
-                    />
-                  </TabsContent>
-                </Tabs>
-              )}
-          </div>
-        </TabsContent>
-
-        {/* Specs Tab */}
-        <TabsContent value="specs" className="mt-0">
-          {!selectedKB ? (
-            <div className="flex h-full items-center justify-center">
-              <Card className="max-w-md">
-                <CardContent className="p-8 text-center">
-                  <GitBranch className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-medium mb-2">Select a Knowledge Base</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Select a knowledge base from the Resources tab to manage its specifications.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          ) : (
-            <SpecManagement
-              onSpecToggle={(specId, enabled) => {
-                console.log(`Spec ${specId} toggled to ${enabled}`);
-                // TODO: Update AI context with spec changes
-              }}
-            />
-          )}
-        </TabsContent>
-
-        {/* Prompts Tab */}
-        <TabsContent value="prompts" className="mt-0">
-          {!selectedKB ? (
-            <div className="flex h-full items-center justify-center">
-              <Card className="max-w-md">
-                <CardContent className="p-8 text-center">
-                  <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-medium mb-2">Select a Knowledge Base</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Select a knowledge base from the Resources tab to manage its prompts.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          ) : (
-          <PromptManagement 
-            onPromptExecute={(prompt, variables) => {
-              console.log('Executing prompt:', prompt);
-              console.log('With variables:', variables);
-              // TODO: Execute prompt through AI service
-            }}
-          />
-          )}
-        </TabsContent>
-        </Tabs>
-      }
-
-      <CreateKBDialog
-        isOpen={showCreateKBDialog}
-        onClose={() => setShowCreateKBDialog(false)}
-        onCreate={async (name, description) => {
-          if (!currentProject) {
-            console.error('No project selected');
-            return;
-          }
-          
-          try {
-            // Create KB in local storage with project association
-            const newKB = await knowledgeBaseStorage.createKnowledgeBase(name, description);
-
-            // Reload knowledge bases to ensure proper filtering by project
-            await loadKnowledgeBasesFromStorage();
-            
-            // Select the new KB
-            setSelectedKB(newKB.id);
-          } catch (error) {
-            console.error('Failed to create knowledge base:', error);
-          }
-        }}
-      />
-
-      {/* Document Preview Modal */}
-      {selectedDocument && (
-        <DocumentPreview
-          document={selectedDocument}
-          onClose={() => setSelectedDocument(null)}
-          getDocumentContent={getDocumentContent}
-        />
-      )}
-      </div>
-    </div>
-  );
-}
+    return (\n      <div className=\"flex h-full items-center justify-center p-6\">\n        <Card className=\"max-w-2xl w-full animate-scale-in\">\n          <CardContent className=\"p-12 text-center\">\n            {/* Icon with glow */}\n            <div className=\"relative inline-block mb-6\">\n              <div className=\"absolute -inset-4 bg-white/5 rounded-full blur-2xl animate-glow-pulse\" />\n              <div className=\"relative w-24 h-24 mx-auto rounded-3xl bg-muted border-2 border-foreground/20 flex items-center justify-center shadow-cosmic-lg\">\n                <FolderOpen className=\"h-12 w-12 text-foreground/80\" />\n              </div>\n            </div>\n
+            <h3 className=\"text-2xl font-bold mb-3 animate-fade-in\">No Project Selected</h3>\n            <p className=\"text-sm text-muted-foreground mb-8 max-w-md mx-auto animate-fade-in delay-100\">\n              Create or select a project to organize your knowledge bases, specifications, and AI prompts in one unified workspace.\n            </p>\n
+            {/* Action buttons */}\n            <div className=\"flex gap-3 justify-center animate-fade-in delay-200\">\n              <Button size=\"lg\" className=\"gap-2\" variant=\"outline\" onClick={handleCreateProject}>\n                <Plus className=\"h-4 w-4\" />\n                Create Project\n              </Button>\n              <Button size=\"lg\" variant=\"outline\" className=\"gap-2\" onClick={handleOpenProject}>\n                <FolderOpen className=\"h-4 w-4\" />\n                Open Project\n              </Button>\n            </div>\n
+            {/* Features list */}\n            <div className=\"mt-12 pt-8 border-t border-border/50 grid grid-cols-3 gap-6 text-left animate-fade-in delay-300\">\n              <div className=\"space-y-2\">\n                <Database className=\"h-5 w-5 text-foreground/60 mb-2\" />\n                <h4 className=\"font-semibold text-sm\">Knowledge Bases</h4>\n                <p className=\"text-xs text-muted-foreground\">Organize documents and resources</p>\n              </div>\n              <div className=\"space-y-2\">\n                <GitBranch className=\"h-5 w-5 text-foreground/60 mb-2\" />\n                <h4 className=\"font-semibold text-sm\">Specifications</h4>\n                <p className=\"text-xs text-muted-foreground\">Define system behavior</p>\n              </div>\n              <div className=\"space-y-2\">\n                <FileText className=\"h-5 w-5 text-foreground/60 mb-2\" />\n                <h4 className=\"font-semibold text-sm\">Prompts</h4>\n                <p className=\"text-xs text-muted-foreground\">Reusable AI templates</p>\n              </div>\n            </div>\n          </CardContent>\n        </Card>\n      </div>\n    );\n  }\n
+  return (\n    <div className=\"flex flex-col h-full overflow-hidden\">\n      <div className=\"flex-1 overflow-y-auto px-6 pt-12\">\n      {/* Header */}\n      <div className='flex justify-between my-2 shrink-0'>\n        <div className=\"flex justify-between shrink-0\">\n          <div className='flex items-start gap-2 flex-col'>\n            {selectedKB && activeTab === 'resources' && (\n              <button\n                onClick={() => setSelectedKB(null)}\n                className=\"gap-2 transition-colors mb-4\"\n              >\n                <ArrowLeft className=\"h-4 w-4\" />\n              </button>\n            )}\n            <h2 className=\"text-2xl font-light tracking-tight text-left\">\n              {activeTab === 'resources' ? selectedKBData?.name || 'Knowledge Management' : 'System Specifications'}\n            </h2>\n            <p className=\"text-sm text-muted-foreground mt-1 text-left mb-4\">\n              {activeTab === 'resources' \n                ? (selectedKBData?.description || 'Organize and manage your knowledge resources')\n                : 'Define core system behavior and constraints'\n              }\n            </p>\n          </div>\n        </div>\n        <div className=\"flex gap-2\">\n          {!selectedKB && activeTab === 'resources' && <Button\n            onClick={() => setShowCreateKBDialog(true)}\n            size=\"sm\"\n            variant=\"outline\"\n          >\n            <Plus className=\"h-3 w-3 mr-1\" />\n            New Knowledge Base\n          </Button>}\n        </div>\n      </div>\n
+      {/* Main Content */}\n      {\n        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className=\"flex flex-col shrink-0 mb-6\">\n          <TabsList className=\"mb-6 shrink-0 border-b border-border/40 pb-0\">\n            <TabsTrigger value=\"resources\">\n              <Database className=\"h-3 w-3 mr-1\" />\n              Resources\n            </TabsTrigger>\n            <TabsTrigger value=\"specs\">\n              <GitBranch className=\"h-3 w-3 mr-1\" />\n              Specifications\n            </TabsTrigger>\n            <TabsTrigger value=\"prompts\">\n              <FileText className=\"h-3 w-3 mr-1\" />\n              Prompts\n            </TabsTrigger>\n          </TabsList>\n
+        {/* Resources Tab */}\n        <TabsContent value=\"resources\" className=\"mt-0\">\n          <div className=\"w-full\">\n              {/* Show KB list when no KB is selected */}\n              {!selectedKB && knowledgeBases.length > 0 && (\n                <div className=\"grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-6\">\n                  {knowledgeBases.map((kb) => (\n                    <Card\n                      key={kb.id}\n                      className={`cursor-pointer transition-all border-muted hover:border-muted-foreground/20`}\n                      onClick={() => setSelectedKB(kb.id)}\n                    >\n                      <CardHeader className=\"pb-3 relative\">\n                        <button\n                          onClick={(e) => handleDeleteKnowledgeBase(kb.id, e)}\n                          className=\"absolute top-4 right-4 p-1 rounded hover:bg-destructive/20 transition-colors\"\n                          title=\"Delete knowledge base\"\n                        >\n                          <Delete className=\"h-3 w-3\" />\n                        </button>\n                        <CardTitle className=\"text-base font-normal\">{kb.name}</CardTitle>\n                        <CardDescription className=\"text-xs\">{kb.description}</CardDescription>\n                      </CardHeader>\n                      <CardContent>\n                        <div className=\"space-y-2 text-xs text-muted-foreground\">\n                          <div className=\"flex items-center gap-2\">\n                            <FileText className=\"h-3 w-3\" />\n                            <span>{kb.documentCount} documents</span>\n                          </div>\n                          <div className=\"flex items-center gap-2\">\n                            <Clock className=\"h-3 w-3\" />\n                            <span>Updated: {new Date(kb.lastUpdated).toLocaleDateString()}</span>\n                          </div>\n                        </div>\n                      </CardContent>\n                    </Card>\n                  ))}\n                </div>\n              )}\n
+              {/* Info Box */}\n              {knowledgeBases.length === 0 && (\n                <div className=\"flex h-full justify-center items-center\">\n                  <Card className=\"border-muted max-w-xl mx-auto\">\n                    <CardHeader className=\"pb-3\">\n                      <CardTitle className=\"text-base font-normal\">Getting Started</CardTitle>\n                    </CardHeader>\n                    <CardContent>\n                      <p className=\"text-sm text-muted-foreground mb-4\">\n                        Knowledge bases are your personal document repositories. They store your files persistently and allow AI to answer questions based on their content.\n                      </p>\n                      <Button\n                        onClick={() => setShowCreateKBDialog(true)}\n                        className=\"w-full\"\n                      >\n                        <Plus className=\"h-4 w-4 mr-2\" />\n                        Create Your First Knowledge Base\n                      </Button>\n                    </CardContent>\n                  </Card>\n                </div>\n              )}\n
+              {/* KB Selected View with Tabs */}\n              {selectedKBData && selectedKB && (\n                <Tabs value={resourceView} onValueChange={(v) => setResourceView(v as any)} className=\"flex flex-col\">\n                  <TabsList className=\"mb-6 shrink-0 border-b border-border/40 pb-0\">\n                    <TabsTrigger value=\"documents\">\n                      <FileText className=\"h-3 w-3 mr-1\" />\n                      Documents\n                    </TabsTrigger>\n                    <TabsTrigger value=\"graph\">\n                      <Network className=\"h-3 w-3 mr-1\" />\n                      Context Graph\n                    </TabsTrigger>\n                  </TabsList>\n
+                  {/* Documents Tab */}\n                  <TabsContent value=\"documents\" className=\"mt-0\">\n                    <div className=\"space-y-4 pb-6\">\n                      <Card className=\"border-muted\">\n                        <CardHeader className='flex flex-row justify-between items-center'>\n                          <CardTitle className=\"text-lg font-normal\">Documents</CardTitle>\n                          <CardDescription className=\"text-xs\"><em>Click to preview</em></CardDescription>\n                        </CardHeader>\n                        <CardContent className=\"flex flex-col gap-4\">\n                          {/* Document Organizer */}\n                          <DocumentOrganizer\n                            knowledgeBaseId={selectedKB}\n                            knowledgeBaseName={selectedKBData.name}\n                            documents={kbDocuments[selectedKB] || []}\n                            onDocumentSelect={setSelectedDocument}\n                            onDocumentDelete={handleDeleteDocument}\n                            onDocumentToggle={() => {\n                              loadKBDocumentsFromStorage(selectedKB);\n                            }}\n                            onGroupsChange={() => {\n                              loadKBDocumentsFromStorage(selectedKB);\n                            }}\n                          />\n
+                          {/* Upload Button */}\n                          <div className='flex justify-end mt-4 gap-2'>\n                             <Button\n                              onClick={() => setShowWebIndexer(true)}\n                              size=\"sm\"\n                              variant=\"outline\"\n                            >\n                              <Globe className=\"h-3 w-3 mr-1\" />\n                              Add Online Docs\n                            </Button>\n                            <Button\n                              onClick={handleFileUpload}\n                              size=\"sm\"\n                              variant=\"outline\"\n                              disabled={isLoading}\n                            >\n                              <Plus className=\"h-3 w-3 mr-1\" />\n                              Add Documents\n                            </Button>\n                          </div>\n                        </CardContent>\n                      </Card>\n                    </div>\n                  </TabsContent>\n
+                  {/* Graph View Tab */}\n                  <TabsContent value=\"graph\" className=\"mt-0\">\n                    <UnifiedContextGraph\n                      knowledgeGroups={kbDocuments[selectedKB]?.map(doc => ({\n                        id: doc.id,\n                        name: doc.filename,\n                        documents: [],\n                        metadata: doc.metadata\n                      })) || []}\n                      onToggleNode={() => {\n                        loadKBDocumentsFromStorage(selectedKB);\n                      }}\n                    />\n                  </TabsContent>\n                </Tabs>\n              )}\n          </div>\n        </TabsContent>\n
+        {/* Specs Tab */}\n        <TabsContent value=\"specs\" className=\"mt-0\">\n          {!selectedKB ? (\n            <div className=\"flex h-full items-center justify-center\">\n              <Card className=\"max-w-md\">\n                <CardContent className=\"p-8 text-center\">\n                  <GitBranch className=\"h-12 w-12 mx-auto mb-4 text-muted-foreground\" />\n                  <h3 className=\"text-lg font-medium mb-2\">Select a Knowledge Base</h3>\n                  <p className=\"text-sm text-muted-foreground\">\n                    Select a knowledge base from the Resources tab to manage its specifications.\n                  </p>\n                </CardContent>\n              </Card>\n            </div>\n          ) : (\n            <SpecManagement\n              onSpecToggle={(specId, enabled) => {\n                console.log(`Spec ${specId} toggled to ${enabled}`);\n                // TODO: Update AI context with spec changes\n              }}\n            />\n          )}\n        </TabsContent>\n
+        {/* Prompts Tab */}\n        <TabsContent value=\"prompts\" className=\"mt-0\">\n          {!selectedKB ? (\n            <div className=\"flex h-full items-center justify-center\">\n              <Card className=\"max-w-md\">\n                <CardContent className=\"p-8 text-center\">\n                  <FileText className=\"h-12 w-12 mx-auto mb-4 text-muted-foreground\" />\n                  <h3 className=\"text-lg font-medium mb-2\">Select a Knowledge Base</h3>\n                  <p className=\"text-sm text-muted-foreground\">\n                    Select a knowledge base from the Resources tab to manage its prompts.\n                  </p>\n                </CardContent>\n              </Card>\n            </div>\n          ) : (\n          <PromptManagement \n            onPromptExecute={(prompt, variables) => {\n              console.log('Executing prompt:', prompt);\n              console.log('With variables:', variables);\n              // TODO: Execute prompt through AI service\n            }}\n          />\n          )}\n        </TabsContent>\n        </Tabs>\n      }\n
+      <CreateKBDialog\n        isOpen={showCreateKBDialog}\n        onClose={() => setShowCreateKBDialog(false)}\n        onCreate={async (name, description) => {\n          if (!currentProject) {\n            console.error('No project selected');\n            return;\n          }\n          \n          try {\n            // Create KB in local storage with project association\n            const newKB = await knowledgeBaseStorage.createKnowledgeBase(name, description);\n\n            // Reload knowledge bases to ensure proper filtering by project\n            await loadKnowledgeBasesFromStorage();\n            \n            // Select the new KB\n            setSelectedKB(newKB.id);\n          } catch (error) {\n            console.error('Failed to create knowledge base:', error);\n          }\n        }}\n      />\n      \n      {/* Web Indexer Dialog */}\n      <WebIndexerDialog\n        isOpen={showWebIndexer}\n        onClose={() => setShowWebIndexer(false)}\n        onIndexComplete={async () => {\n          if (selectedKB) {\n            await loadKBDocumentsFromStorage(selectedKB);\n            // Update document count\n            // (This is a simplified update, real app should fetch fresh count)\n          }\n        }}\n      />\n
+      {/* Document Preview Modal */}\n      {selectedDocument && (\n        <DocumentPreview\n          document={selectedDocument}\n          onClose={() => setSelectedDocument(null)}\n          getDocumentContent={getDocumentContent}\n        />\n      )}\n      </div>\n    </div>\n  );\n}

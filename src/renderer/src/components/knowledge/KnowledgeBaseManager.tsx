@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
-import { Database, Upload, FileText, FolderPlus, Search, Trash2, RefreshCw, CheckCircle, Loader, Eye } from 'lucide-react';
+import { WebIndexerDialog } from './WebIndexerDialog';
+import { Database, Upload, FileText, FolderPlus, Search, Trash2, RefreshCw, CheckCircle, Loader, Eye, LayoutGrid, List as ListIcon, Folder, XCircle, Globe } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface DocumentChunk {
@@ -15,8 +16,17 @@ interface DocumentChunk {
   chunk_tokens: number;
 }
 
+interface AggregatedDocument {
+  id: string;
+  title: string;
+  file_path: string;
+  file_type: string;
+  created_at: number;
+  chunk_count: number;
+}
+
 export const KnowledgeBaseManager = () => {
-  const [documents, setDocuments] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<AggregatedDocument[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<DocumentChunk[]>([]);
   const [loading, setLoading] = useState(false);
@@ -24,6 +34,8 @@ export const KnowledgeBaseManager = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [previewDoc, setPreviewDoc] = useState<{ id: string, title: string } | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'grouped'>('grouped');
+  const [showWebIndexer, setShowWebIndexer] = useState(false);
 
   const loadDocuments = async () => {
     setLoading(true);
@@ -148,16 +160,42 @@ export const KnowledgeBaseManager = () => {
       const result = await (window as any).api.file.openFolderDialog();
 
       if (result.success && result.data) {
+        // Ask for confirmation if it's a large operation
+        setSuccessMessage("Scanning directory...");
+        
         const filesResult = await (window as any).api.file.getDirectoryFiles(result.data, true);
 
         if (filesResult.success && filesResult.data.length > 0) {
-          const files = filesResult.data.filter((f: any) => !f.isDirectory);
+          // Filter out directories and ignored patterns
+          const ignoredPatterns = [
+            '/node_modules/', '/.git/', '/dist/', '/build/', '/out/', 
+            '/.next/', '/coverage/', '/.idea/', '/.vscode/', 
+            '.DS_Store', '.jpg', '.png', '.gif', '.ico', '.svg', '.woff'
+          ];
+
+          const files = filesResult.data.filter((f: any) => {
+            if (f.isDirectory) return false;
+            const normalizedPath = f.path.replace(/\\/g, '/');
+            return !ignoredPatterns.some(pattern => normalizedPath.includes(pattern));
+          });
+          
           const filePaths = files.map((f: any) => f.path);
 
           if (filePaths.length === 0) {
-            setError('No files found in folder');
+            setError('No relevant files found in folder (ignored node_modules, .git, assets, etc.)');
             return;
           }
+
+          // Confirm if too many files
+          if (filePaths.length > 100) {
+             if (!confirm(`Found ${filePaths.length} files to index. This might take a while. Continue?`)) {
+               setIndexing(false);
+               setSuccessMessage(null);
+               return;
+             }
+          }
+
+          setSuccessMessage(`Indexing ${filePaths.length} files...`);
 
           try {
             const indexResult = await (window as any).api.document.indexFiles(filePaths);
@@ -205,6 +243,8 @@ export const KnowledgeBaseManager = () => {
   };
 
   const handleDeleteDocument = async (documentId: string) => {
+    if (!confirm('Are you sure you want to delete this document?')) return;
+
     setLoading(true);
     setError(null);
 
@@ -224,6 +264,46 @@ export const KnowledgeBaseManager = () => {
     }
   };
 
+  const handleClearAll = async () => {
+    if (!confirm('Are you sure you want to delete ALL indexed documents? This cannot be undone.')) return;
+    
+    setLoading(true);
+    // Deleting one by one for now as bulk delete might not be exposed
+    try {
+      for (const doc of documents) {
+        await (window as any).api.document.delete(doc.id);
+      }
+      setDocuments([]);
+      setSuccessMessage('All documents cleared');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      setError('Failed to clear all documents');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Group documents by folder
+  const groupedDocuments = useMemo(() => {
+    const groups: Record<string, AggregatedDocument[]> = {};
+    documents.forEach(doc => {
+      // Try to extract folder path relative to common root or just parent dir
+      const pathParts = doc.file_path?.split(/[/\\\\]/) || [];
+      pathParts.pop(); // remove filename
+      const dir = pathParts.length > 0 ? pathParts.join('/') : 'Root';
+      // Simplify path for display (taking last 2 segments)
+      const displayDir = pathParts.length > 2 
+        ? '.../' + pathParts.slice(-2).join('/') 
+        : (pathParts.join('/') || 'Root');
+
+      if (!groups[displayDir]) {
+        groups[displayDir] = [];
+      }
+      groups[displayDir].push(doc);
+    });
+    return groups;
+  }, [documents]);
+
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
@@ -239,6 +319,29 @@ export const KnowledgeBaseManager = () => {
             </div>
           </div>
           <div className="flex items-center space-x-2">
+            <div className="flex bg-background border border-border rounded-md mr-2">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={cn("p-1.5 hover:bg-secondary transition-colors", viewMode === 'grid' && "bg-secondary text-primary")}
+                title="Grid View"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={cn("p-1.5 hover:bg-secondary transition-colors", viewMode === 'list' && "bg-secondary text-primary")}
+                title="List View"
+              >
+                <ListIcon className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('grouped')}
+                className={cn("p-1.5 hover:bg-secondary transition-colors", viewMode === 'grouped' && "bg-secondary text-primary")}
+                title="Group by Folder"
+              >
+                <Folder className="w-4 h-4" />
+              </button>
+            </div>
             <button
               onClick={loadDocuments}
               disabled={loading}
@@ -246,6 +349,14 @@ export const KnowledgeBaseManager = () => {
               title="Refresh"
             >
               <RefreshCw className={cn('w-4 h-4 text-muted-foreground', loading && 'animate-spin')} />
+            </button>
+             <button
+              onClick={handleClearAll}
+              disabled={loading || documents.length === 0}
+              className="p-2 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+              title="Clear All Documents"
+            >
+              <XCircle className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -255,23 +366,30 @@ export const KnowledgeBaseManager = () => {
           <button
             onClick={handleAddFiles}
             disabled={indexing}
-            className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed rounded-md"
           >
-            {indexing ? <Loader className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            <span>Add Files</span>
+            {indexing ? <Loader className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}<span>Add Files</span>
           </button>
           <button
             onClick={handleAddFolder}
             disabled={indexing}
-            className="flex items-center space-x-2 px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors text-sm font-medium disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            className="flex items-center space-x-2 px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors text-sm font-medium disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed rounded-md"
           >
             {indexing ? <Loader className="w-4 h-4 animate-spin" /> : <FolderPlus className="w-4 h-4" />}
             <span>Add Folder</span>
           </button>
           <button
+            onClick={() => setShowWebIndexer(true)}
+            disabled={indexing}
+            className="flex items-center space-x-2 px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors text-sm font-medium disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed rounded-md"
+          >
+            {indexing ? <Loader className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+            <span>Add URL</span>
+          </button>
+          <button
             onClick={handleReindexSpecs}
             disabled={indexing}
-            className="flex items-center space-x-2 px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors text-sm font-medium disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            className="flex items-center space-x-2 px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors text-sm font-medium disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed rounded-md"
           >
             {indexing ? <Loader className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
             <span>Re-index Specs</span>
@@ -289,31 +407,27 @@ export const KnowledgeBaseManager = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="Search indexed documents..."
-            className="w-full pl-10 pr-4 py-2 bg-background border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
           />
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto p-4">
         {error && (
-          <div className="p-4">
-            <div className="text-sm text-red-200 bg-red-900/30 p-4 border-l-4 border-red-500 font-medium font-mono">
-              ERROR: {error}
-            </div>
+          <div className="mb-4 text-sm text-red-200 bg-red-900/30 p-4 border-l-4 border-red-500 font-medium font-mono rounded-r">
+            ERROR: {error}
           </div>
         )}
 
         {successMessage && (
-          <div className="p-4">
-            <div className="text-sm text-green-200 bg-green-900/30 p-4 border-l-4 border-green-500 font-medium font-mono">
-              SUCCESS: {successMessage}
-            </div>
+          <div className="mb-4 text-sm text-green-200 bg-green-900/30 p-4 border-l-4 border-green-500 font-medium font-mono rounded-r">
+            SUCCESS: {successMessage}
           </div>
         )}
 
         {searchResults.length > 0 ? (
-          <div className="p-4 space-y-4">
+          <div className="space-y-4">
             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
               Search Results ({searchResults.length})
             </div>
@@ -329,10 +443,12 @@ export const KnowledgeBaseManager = () => {
             </div>
           </div>
         ) : (
-          <div className="p-4">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
-              Indexed Documents ({documents.length})
+          <div>
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4 flex justify-between items-center">
+              <span>Indexed Documents ({documents.length})</span>
+              {documents.length > 0 && <span className="text-[10px] opacity-70">Showing {viewMode} view</span>}
             </div>
+            
             {documents.length === 0 ? (
               <div className="flex items-center justify-center h-64">
                 <div className="text-center max-w-md">
@@ -344,14 +460,14 @@ export const KnowledgeBaseManager = () => {
                   <div className="flex items-center justify-center space-x-2">
                     <button
                       onClick={handleAddFiles}
-                      className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium cursor-pointer"
+                      className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium cursor-pointer rounded-md"
                     >
                       <Upload className="w-4 h-4" />
                       <span>Add Files</span>
                     </button>
                     <button
                       onClick={handleAddFolder}
-                      className="flex items-center space-x-2 px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors text-sm font-medium cursor-pointer"
+                      className="flex items-center space-x-2 px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors text-sm font-medium cursor-pointer rounded-md"
                     >
                       <FolderPlus className="w-4 h-4" />
                       <span>Add Folder</span>
@@ -359,14 +475,41 @@ export const KnowledgeBaseManager = () => {
                   </div>
                 </div>
               </div>
+            ) : viewMode === 'grouped' ? (
+              <div className="space-y-6">
+                {Object.entries(groupedDocuments).sort().map(([folder, docs]) => (
+                  <div key={folder} className="space-y-3">
+                    <div className="flex items-center space-x-2 text-sm font-medium text-primary/80 border-b border-border/50 pb-1">
+                      <Folder className="w-4 h-4" />
+                      <span>{folder}</span>
+                      <span className="text-xs text-muted-foreground bg-secondary px-1.5 rounded-full">{docs.length}</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                      {docs.map(doc => (
+                        <DocumentCard
+                          key={doc.id}
+                          document={doc}
+                          onDelete={handleDeleteDocument}
+                          onPreview={setPreviewDoc}
+                          compact={true}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              <div className={cn(
+                "grid gap-3",
+                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-1"
+              )}>
                 {documents.map((doc) => (
                   <DocumentCard
                     key={doc.id}
                     document={doc}
                     onDelete={handleDeleteDocument}
                     onPreview={setPreviewDoc}
+                    mode={viewMode}
                   />
                 ))}
               </div>
@@ -380,6 +523,7 @@ export const KnowledgeBaseManager = () => {
         <div className="flex items-center space-x-4">
           <span>{documents.length} documents</span>
           <span>•</span>
+          <span>{documents.reduce((acc, doc) => acc + doc.chunk_count, 0)} total chunks</span>
         </div>
         <div className="flex items-center space-x-2">
           {indexing && (
@@ -399,32 +543,69 @@ export const KnowledgeBaseManager = () => {
           title={previewDoc.title}
         />
       )}
+
+      <WebIndexerDialog
+        isOpen={showWebIndexer}
+        onClose={() => setShowWebIndexer(false)}
+        onIndexComplete={loadDocuments}
+      />
     </div>
   );
 };
 
 interface DocumentCardProps {
-  document: {
-    id: string;
-    title: string;
-    file_path: string;
-    file_type: string;
-    created_at: number;
-    chunk_count: number;
-  };
+  document: AggregatedDocument;
   onDelete: (documentId: string) => void;
   onPreview: (document: { id: string, title: string }) => void;
+  mode?: 'grid' | 'list' | 'grouped';
+  compact?: boolean;
 }
 
-const DocumentCard = ({ document, onDelete, onPreview }: DocumentCardProps) => {
+const DocumentCard = ({ document, onDelete, onPreview, mode = 'grid', compact = false }: DocumentCardProps) => {
   const fileExtension = document.file_type || document.file_path?.split('.').pop() || 'txt';
+  
+  if (mode === 'list') {
+    return (
+      <div className="p-3 border border-border bg-card hover:bg-secondary/30 transition-colors group relative flex items-center justify-between rounded-md">
+        <div className="flex items-center space-x-3 overflow-hidden">
+          <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-medium text-foreground truncate">{document.title}</span>
+            <span className="text-xs text-muted-foreground truncate">{document.file_path}</span>
+          </div>
+        </div>
+        <div className="flex items-center space-x-4 ml-4">
+          <div className="text-xs text-muted-foreground whitespace-nowrap">
+            <span className="px-1.5 py-0.5 bg-secondary rounded mr-2">{fileExtension.toUpperCase()}</span>
+            <span>{document.chunk_count} chunks</span>
+          </div>
+          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={(e) => { e.stopPropagation(); onPreview({ id: document.id, title: document.title }); }}
+              className="p-1.5 hover:bg-primary/10 hover:text-primary rounded transition-all cursor-pointer mr-1"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(document.id); }}
+              className="p-1.5 hover:bg-destructive/10 hover:text-destructive rounded transition-all cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-3 border border-border bg-card hover:bg-secondary/30 transition-colors group relative">
-      <div className="flex items-center space-x-2 mb-2">
-        <FileText className="w-4 h-4 text-primary flex-shrink-0" />
-        <h3 className="text-sm font-medium text-foreground truncate flex-1">{document.title}</h3>
-        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+    <div className="p-3 border border-border bg-card hover:bg-secondary/30 transition-colors group relative flex flex-col rounded-md h-full">
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex items-center space-x-2 min-w-0">
+          <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+          <h3 className="text-sm font-medium text-foreground truncate" title={document.title}>{document.title}</h3>
+        </div>
+        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity -mr-1">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -447,7 +628,12 @@ const DocumentCard = ({ document, onDelete, onPreview }: DocumentCardProps) => {
           </button>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      {!compact && (
+        <p className="text-xs text-muted-foreground truncate mb-2" title={document.file_path}>
+           {document.file_path}
+        </p>
+      )}
+      <div className="mt-auto flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span className="px-1.5 py-0.5 bg-secondary rounded">{fileExtension.toUpperCase()}</span>
         <span>{document.chunk_count} chunks</span>
       </div>
@@ -461,7 +647,7 @@ interface DocumentChunkCardProps {
 
 const DocumentChunkCard = ({ chunk }: DocumentChunkCardProps) => {
   return (
-    <div className="p-4 border border-border bg-card hover:bg-secondary/30 transition-colors cursor-pointer">
+    <div className="p-4 border border-border bg-card hover:bg-secondary/30 transition-colors cursor-pointer rounded-md">
       <div className="flex items-start space-x-3">
         <FileText className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">

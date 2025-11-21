@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { cn } from '../../lib/utils';
-import { Check, X, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { Check, X, AlertCircle, ChevronDown, ChevronRight, FileDiff } from 'lucide-react';
 import { parseDiffText, DiffFile, DiffHunk } from '../../utils/diff-parser';
 
 interface DiffViewerProps {
@@ -8,6 +8,8 @@ interface DiffViewerProps {
   oldContent?: string;
   newContent?: string;
   fileName?: string;
+  oldTitle?: string;
+  newTitle?: string;
   mode?: 'unified' | 'split';
 }
 
@@ -16,6 +18,8 @@ export const DiffViewer = ({
   oldContent,
   newContent,
   fileName,
+  oldTitle = 'Original',
+  newTitle = 'Modified',
   mode = 'unified'
 }: DiffViewerProps) => {
   const parsedDiff = useMemo(() => {
@@ -29,8 +33,8 @@ export const DiffViewer = ({
     if (!oldContent || !newContent) return null;
 
     // Simple line-by-line diff
-    const oldLines = oldContent.split('\n');
-    const newLines = newContent.split('\n');
+    const oldLines = oldContent.split('');
+    const newLines = newContent.split('');
     const maxLines = Math.max(oldLines.length, newLines.length);
 
     const changes: Array<{ type: 'add' | 'remove' | 'unchanged'; line: string; lineNum: number }> = [];
@@ -67,7 +71,22 @@ export const DiffViewer = ({
   if (simpleDiff) {
     return (
       <div className="h-full flex flex-col bg-background">
-        <DiffHeader fileName={fileName} additions={simpleDiff.filter(c => c.type === 'add').length} deletions={simpleDiff.filter(c => c.type === 'remove').length} />
+        <div className="flex items-center justify-between px-4 py-2 bg-secondary/30 border-b border-border">
+          <div className="flex items-center gap-4 text-xs font-mono">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <FileDiff className="w-3.5 h-3.5" />
+              <span>{oldTitle}</span>
+            </div>
+            <span className="text-muted-foreground/50">→</span>
+            <div className="flex items-center gap-2 text-foreground font-medium">
+              <span>{newTitle}</span>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <span className="text-xs font-mono text-green-500">+{simpleDiff.filter(c => c.type === 'add').length}</span>
+            <span className="text-xs font-mono text-red-500">-{simpleDiff.filter(c => c.type === 'remove').length}</span>
+          </div>
+        </div>
         <div className="flex-1 overflow-y-auto font-mono text-sm bg-[#0d1117] text-gray-300">
           {simpleDiff.map((change, idx) => (
             <DiffLine key={idx} change={change} />
@@ -162,24 +181,6 @@ const DiffHunkView = ({ hunk }: DiffHunkViewProps) => {
           </div>
         );
       })}
-    </div>
-  );
-};
-
-interface DiffHeaderProps {
-  fileName?: string;
-  additions: number;
-  deletions: number;
-}
-
-const DiffHeader = ({ fileName, additions, deletions }: DiffHeaderProps) => {
-  return (
-    <div className="px-4 py-2 bg-secondary/30 border-b border-border flex items-center justify-between">
-      <span className="text-sm font-mono font-medium text-foreground">{fileName || 'Untitled'}</span>
-      <div className="flex items-center space-x-3">
-        <span className="text-xs font-mono text-green-500">+{additions}</span>
-        <span className="text-xs font-mono text-red-500">-{deletions}</span>
-      </div>
     </div>
   );
 };

@@ -19,13 +19,43 @@ interface FileNode extends FileInfo {
 interface FileBrowserProps {
   onFileSelect?: (filePath: string) => void;
   selectedFile?: string;
+  initialPath?: string;
 }
 
-export const FileBrowser = ({ onFileSelect, selectedFile }: FileBrowserProps) => {
-  const [rootPath, setRootPath] = useState<string | null>(null);
+export const FileBrowser = ({ onFileSelect, selectedFile, initialPath }: FileBrowserProps) => {
+  const [rootPath, setRootPath] = useState<string | null>(initialPath || null);
   const [fileTree, setFileTree] = useState<FileNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const init = async () => {
+      // If initialPath provided, use it
+      if (initialPath) {
+        setRootPath(initialPath);
+        await loadDirectory(initialPath);
+        return;
+      }
+      
+      // Otherwise try to get CWD
+      if (!rootPath) {
+        try {
+          setLoading(true);
+          const result = await (window as any).api.file.getCwd();
+          if (result.success && result.data) {
+             setRootPath(result.data);
+             await loadDirectory(result.data);
+          }
+        } catch (e) {
+          console.warn("Failed to auto-load CWD:", e);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    
+    init();
+  }, [initialPath]);
 
   const selectFolder = async () => {
     setLoading(true);
@@ -47,6 +77,9 @@ export const FileBrowser = ({ onFileSelect, selectedFile }: FileBrowserProps) =>
 
   const loadDirectory = async (dirPath: string, parentNode?: FileNode) => {
     try {
+      // Avoid clearing root loading state for subdirectory expansions
+      if (!parentNode) setLoading(true);
+      
       const result = await (window as any).api.file.getDirectoryFiles(dirPath, false);
 
       if (!result.success) {
@@ -72,13 +105,15 @@ export const FileBrowser = ({ onFileSelect, selectedFile }: FileBrowserProps) =>
         // Update the parent node's children
         parentNode.children = nodes;
         parentNode.isLoaded = true;
-        setFileTree([...fileTree]);
+        setFileTree((prev) => [...prev]); // Trigger re-render
       } else {
         // This is the root directory
         setFileTree(nodes);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load directory');
+    } finally {
+      if (!parentNode) setLoading(false);
     }
   };
 
@@ -125,7 +160,7 @@ export const FileBrowser = ({ onFileSelect, selectedFile }: FileBrowserProps) =>
       </div>
 
       <div className="flex-1 overflow-y-auto py-2">
-        {loading && (
+        {loading && !fileTree.length && (
           <div className="flex items-center justify-center py-8">
             <div className="text-sm text-muted-foreground">Loading...</div>
           </div>
@@ -152,7 +187,7 @@ export const FileBrowser = ({ onFileSelect, selectedFile }: FileBrowserProps) =>
           </div>
         )}
 
-        {!loading && fileTree.length > 0 && (
+        {fileTree.length > 0 && (
           <div>
             {fileTree.map((node) => (
               <FileTreeNode

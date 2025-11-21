@@ -18,11 +18,14 @@ export interface ShadowAction {
     metadata?: any;
 }
 
+export type ShadowCompletionHandler = (action: ShadowAction, result: any, error?: any) => void;
+
 export class ShadowService {
     private static instance: ShadowService;
     private pendingActions: Map<string, ShadowAction> = new Map();
     private isEnabled: boolean = true; // Default to enabled for safety
     private mainWindow: BrowserWindow | null = null;
+    private completionHandlers: ShadowCompletionHandler[] = [];
 
     private constructor() {}
 
@@ -46,6 +49,10 @@ export class ShadowService {
         return this.isEnabled;
     }
 
+    public onActionComplete(handler: ShadowCompletionHandler) {
+        this.completionHandlers.push(handler);
+    }
+
     /**
      * Stage an action for review.
      * Returns a pending status immediately.
@@ -56,7 +63,7 @@ export class ShadowService {
         summary: string,
         payload: any,
         metadata: any = {}
-    ): Promise<{ success: boolean; message: string; actionId: string }> {
+    ): Promise<{ status: string; message: string; actionId: string }> {
         const id = `shadow-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         
         const action: ShadowAction = {
@@ -76,7 +83,7 @@ export class ShadowService {
         this.notifyUpdate();
 
         return { 
-            success: true, 
+            status: 'staged', 
             message: 'Action staged for review (Shadow Mode active)',
             actionId: id 
         };
@@ -88,7 +95,7 @@ export class ShadowService {
             .sort((a, b) => b.timestamp - a.timestamp);
     }
 
-    public async approveAction(id: string): Promise<{ success: boolean; result?: any; error?: string }> {
+    public async approveAction(id: string, modifiedContent?: string): Promise<{ success: boolean; result?: any; error?: string }> {
         const action = this.pendingActions.get(id);
         if (!action) return { success: false, error: 'Action not found' };
         
@@ -96,20 +103,33 @@ export class ShadowService {
 
         console.log(`[ShadowService] Approving action ${id}`);
         
+        // If manual correction was provided
+        if (modifiedContent !== undefined && action.type === 'fs:write') {
+            console.log(`[ShadowService] Applying user correction for ${id}`);
+            action.payload.content = modifiedContent;
+            action.metadata = { ...action.metadata, manualCorrection: true };
+        }
+
         try {
             action.status = 'approved';
             const result = await this.executeAction(action);
             action.status = 'executed';
-            this.pendingActions.delete(id); // Remove from pending after success, or keep in history?
-            // For now, keep in history but mark executed
-            this.pendingActions.set(id, action);
+            
+            // Update storage
+            this.pendingActions.delete(id);
+            this.pendingActions.set(id, action); // Keep history
             
             this.notifyUpdate();
+            
+            // Notify completion subscribers (e.g. HappenManager)
+            this.notifyCompletion(action, result);
+
             return { success: true, result };
         } catch (error: any) {
             console.error(`[ShadowService] Execution failed for ${id}:`, error);
             action.status = 'failed';
             this.notifyUpdate();
+            this.notifyCompletion(action, null, error.message);
             return { success: false, error: error.message };
         }
     }
@@ -121,6 +141,8 @@ export class ShadowService {
         console.log(`[ShadowService] Rejecting action ${id}`);
         action.status = 'rejected';
         this.notifyUpdate();
+        
+        this.notifyCompletion(action, null, 'Action rejected by user');
         
         return { success: true };
     }
@@ -146,6 +168,16 @@ export class ShadowService {
         if (this.mainWindow) {
             this.mainWindow.webContents.send('happen:shadow-update', this.getPendingActions());
         }
+    }
+
+    private notifyCompletion(action: ShadowAction, result: any, error?: any) {
+        this.completionHandlers.forEach(h => {
+            try {
+                h(action, result, error);
+            } catch (e) {
+                console.error('[ShadowService] Error in completion handler:', e);
+            }
+        });
     }
 }
 

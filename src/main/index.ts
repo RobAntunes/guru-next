@@ -6,9 +6,12 @@ import { fileStorage } from './file-storage'
 import { aiModelService } from './ai-model-service'
 import { vectorStoreService } from './vector-store-service'
 import { wasmVM } from './wasm-vm'
+import { memoryService } from './services/memory-service'
 
 import { natsService } from './services/nats-service'
 import { happenManager } from './services/happen/happen-manager'
+import { shadowService } from './services/happen/shadow-service'
+import { providerManager } from './services/provider-manager'
 
 // electron-vite automatically provides __dirname via import.meta.dirname
 const __dirname = import.meta.dirname
@@ -27,6 +30,13 @@ async function createWindow() {
 
     await fileStorage.initialize()
     console.log('File storage initialized successfully')
+
+    await memoryService.initialize()
+    console.log('Memory service initialized successfully')
+
+    // Initialize Provider Manager and load saved API keys
+    await providerManager.initialize()
+    console.log('Provider Manager initialized - API keys loaded')
   } catch (error) {
     console.error('Failed to initialize core services:', error)
   }
@@ -55,6 +65,9 @@ async function createWindow() {
       sandbox: false
     }
   })
+
+  // Connect Shadow Service to Window for real-time updates
+  shadowService.setMainWindow(mainWindow)
 
   // Load the app
   const devServerUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173'

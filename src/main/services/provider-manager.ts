@@ -1,177 +1,106 @@
 /**
  * AI Provider Manager
  * Manages multiple AI providers and their configurations
+ * This is a wrapper around aiManager that handles persistence via secureStorage
  */
 
-import { providerRegistry, AIProvider, AIMessage, AIResponse, StreamChunk } from './ai-provider';
-import { AnthropicProvider } from './providers/anthropic-provider';
-import { OpenAIProvider } from './providers/openai-provider';
-import { GeminiProvider } from './providers/gemini-provider';
+import { aiManager } from './ai-manager';
 import { secureStorage } from './secure-storage';
 
 class ProviderManager {
   private readonly API_KEY_PREFIX = 'ai_provider_key_';
-  private readonly ACTIVE_PROVIDER_KEY = 'active_ai_provider';
+  private initialized = false;
 
-  constructor() {
-    // Register available providers
-    providerRegistry.register(new AnthropicProvider());
-    providerRegistry.register(new OpenAIProvider());
-    providerRegistry.register(new GeminiProvider());
+  /**
+   * Initialize provider manager - load saved keys and configure aiManager
+   * This should be called on app startup
+   */
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+
+    console.log('[ProviderManager] Initializing and loading saved API keys...');
+    
+    // MIGRATION: Move old 'google' key to 'gemini' (one-time migration)
+    const oldGoogleKey = await secureStorage.getItem(`${this.API_KEY_PREFIX}google`);
+    if (oldGoogleKey) {
+      console.log('[ProviderManager] Migrating old google key to gemini...');
+      await secureStorage.setItem(`${this.API_KEY_PREFIX}gemini`, oldGoogleKey);
+      await secureStorage.removeItem(`${this.API_KEY_PREFIX}google`);
+    }
+
+    // Get all providers from aiManager
+    const providers = aiManager.getAllProviders();
+
+    for (const provider of providers) {
+      const apiKey = await secureStorage.getItem(`${this.API_KEY_PREFIX}${provider.id}`);
+      if (apiKey) {
+        console.log(`[ProviderManager] Configuring ${provider.id} with saved key`);
+        aiManager.setApiKey(provider.id, apiKey);
+      }
+    }
+
+    this.initialized = true;
+    console.log('[ProviderManager] Initialization complete');
   }
 
   /**
    * Initialize a provider with API key
    */
-  async initializeProvider(providerName: string, apiKey: string, model?: string): Promise<void> {
-    const provider = providerRegistry.getProvider(providerName);
-    if (!provider) {
-      throw new Error(`Provider ${providerName} not found`);
-    }
+  async initializeProvider(providerName: string, apiKey: string): Promise<void> {
+    console.log(`[ProviderManager] Setting API key for ${providerName}`);
 
-    await provider.initialize({ apiKey, model });
+    // Ensure we're initialized
+    await this.initialize();
 
-    // Save API key
+    // Configure aiManager (runtime)
+    aiManager.setApiKey(providerName, apiKey);
+
+    // Save to secureStorage (persistence)
     await secureStorage.setItem(`${this.API_KEY_PREFIX}${providerName}`, apiKey);
 
-    // Set as active provider
-    providerRegistry.setActiveProvider(providerName);
-    await secureStorage.setItem(this.ACTIVE_PROVIDER_KEY, providerName);
-  }
-
-  /**
-   * Load provider from saved configuration
-   */
-  async loadProvider(providerName?: string): Promise<void> {
-    // If no provider specified, use active provider
-    let targetProvider = providerName;
-    if (!targetProvider) {
-      targetProvider = await secureStorage.getItem(this.ACTIVE_PROVIDER_KEY);
-    }
-
-    if (!targetProvider) {
-      throw new Error('No provider configured');
-    }
-
-    const provider = providerRegistry.getProvider(targetProvider);
-    if (!provider) {
-      throw new Error(`Provider ${targetProvider} not found`);
-    }
-
-    // Load API key
-    const apiKey = await secureStorage.getItem(`${this.API_KEY_PREFIX}${targetProvider}`);
-    if (!apiKey) {
-      throw new Error(`No API key found for ${targetProvider}`);
-    }
-
-    await provider.initialize({ apiKey });
-    providerRegistry.setActiveProvider(targetProvider);
-  }
-
-  /**
-   * Get active provider
-   */
-  getActiveProvider(): AIProvider | null {
-    return providerRegistry.getActiveProvider();
-  }
-
-  /**
-   * Check if provider has API key
-   */
-  async hasApiKey(providerName: string): Promise<boolean> {
-    const apiKey = await secureStorage.getItem(`${this.API_KEY_PREFIX}${providerName}`);
-    return apiKey !== null;
+    console.log(`[ProviderManager] API key saved for ${providerName}`);
   }
 
   /**
    * Remove API key for provider
    */
   async removeApiKey(providerName: string): Promise<void> {
+    console.log(`[ProviderManager] Removing API key for ${providerName}`);
+
+    // Remove from secureStorage
     await secureStorage.removeItem(`${this.API_KEY_PREFIX}${providerName}`);
+
+    // Remove from aiManager by setting empty key (which will fail isConfigured check)
+    const provider = aiManager.getProvider(providerName);
+    if (provider) {
+      provider.configure(''); // This will set client to null or invalid state
+    }
+
+    console.log(`[ProviderManager] API key removed for ${providerName}`);
   }
 
   /**
-   * Get current provider name
+   * Check if provider has API key
    */
-  async getActiveProviderName(): Promise<string | null> {
-    return await secureStorage.getItem(this.ACTIVE_PROVIDER_KEY);
+  async hasApiKey(providerName: string): Promise<boolean> {
+    const provider = aiManager.getProvider(providerName);
+    return provider ? provider.isConfigured() : false;
   }
 
   /**
-   * List available providers
+   * List available providers with their configuration status
    */
-  listProviders(): Array<{ name: string; models: string[] }> {
-    const providers = providerRegistry.listProviders();
-    return providers.map(name => {
-      const provider = providerRegistry.getProvider(name);
-      return {
-        name,
-        models: provider?.models || []
-      };
-    });
-  }
+  async listProviders(): Promise<Array<{ id: string; name: string; models: string[]; isConfigured: boolean }>> {
+    // Ensure we're initialized
+    await this.initialize();
 
-  /**
-   * Send message using active provider
-   */
-  async sendMessage(
-    messages: AIMessage[],
-    options?: {
-      model?: string;
-      maxTokens?: number;
-      temperature?: number;
-      systemPrompt?: string;
-    }
-  ): Promise<AIResponse> {
-    const provider = this.getActiveProvider();
-    if (!provider) {
-      // Try to load saved provider
-      await this.loadProvider();
-      const retryProvider = this.getActiveProvider();
-      if (!retryProvider) {
-        throw new Error('No AI provider configured');
-      }
-      return retryProvider.sendMessage(messages, options);
-    }
-
-    return provider.sendMessage(messages, options);
-  }
-
-  /**
-   * Stream message using active provider
-   */
-  async *streamMessage(
-    messages: AIMessage[],
-    options?: {
-      model?: string;
-      maxTokens?: number;
-      temperature?: number;
-      systemPrompt?: string;
-    }
-  ): AsyncGenerator<StreamChunk> {
-    const provider = this.getActiveProvider();
-    if (!provider) {
-      await this.loadProvider();
-      const retryProvider = this.getActiveProvider();
-      if (!retryProvider) {
-        throw new Error('No AI provider configured');
-      }
-      yield* retryProvider.streamMessage(messages, options);
-      return;
-    }
-
-    yield* provider.streamMessage(messages, options);
-  }
-
-  /**
-   * Calculate cost using active provider
-   */
-  calculateCost(inputTokens: number, outputTokens: number, model: string): number {
-    const provider = this.getActiveProvider();
-    if (!provider) {
-      return 0;
-    }
-    return provider.calculateCost(inputTokens, outputTokens, model);
+    const providers = aiManager.getAllProviders();
+    return providers.map(provider => ({
+      id: provider.id,
+      name: provider.name,
+      models: provider.models.map(m => m.id),
+      isConfigured: provider.isConfigured()
+    }));
   }
 }
 

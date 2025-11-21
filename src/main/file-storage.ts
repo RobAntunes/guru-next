@@ -35,6 +35,7 @@ class FileStorage {
     await this.ensureDir(path.join(DATA_DIR, 'projects'));
     await this.ensureDir(path.join(DATA_DIR, 'specs'));
     await this.ensureDir(path.join(DATA_DIR, 'prompts'));
+    await this.ensureDir(path.join(DATA_DIR, 'chat'));
 
     this.initialized = true;
     console.log('File storage initialized at:', DATA_DIR);

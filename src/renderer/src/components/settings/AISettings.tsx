@@ -24,13 +24,15 @@ export const AISettings = () => {
     const loadProviders = async () => {
         try {
             // @ts-ignore
-            if (!window.api?.ai?.getProviders) {
+            if (!window.api?.aiProvider?.list) {
                 console.warn('AI Providers API not available');
                 return;
             }
             // @ts-ignore
-            const list = await window.api.ai.getProviders();
-            setProviders(list);
+            const result = await window.api.aiProvider.list();
+            if (result.success) {
+                setProviders(result.data);
+            }
         } catch (error) {
             console.error('Failed to load providers:', error);
         }
@@ -42,14 +44,16 @@ export const AISettings = () => {
 
         try {
             // @ts-ignore
-            if (!window.api?.ai?.setKey) {
+            if (!window.api?.aiProvider?.setKey) {
                 console.error('AI setKey API not available');
                 return;
             }
             // @ts-ignore
-            await window.api.ai.setKey(providerId, key);
-            await loadProviders();
-            setKeys(prev => ({ ...prev, [providerId]: '' })); // Clear input after save
+            const result = await window.api.aiProvider.setKey(providerId, key);
+            if (result.success) {
+                await loadProviders();
+                setKeys(prev => ({ ...prev, [providerId]: '' })); // Clear input after save
+            }
         } catch (error) {
             console.error('Failed to save key:', error);
         }
@@ -106,9 +110,9 @@ export const AISettings = () => {
                         </div>
 
                         <div className="mt-4 flex flex-wrap gap-2">
-                            {provider.models.map((model: any) => (
-                                <Badge key={model.id} variant="secondary" className="text-[10px] font-mono">
-                                    {model.name}
+                            {provider.models.map((model: string) => (
+                                <Badge key={model} variant="secondary" className="text-[10px] font-mono">
+                                    {model}
                                 </Badge>
                             ))}
                         </div>

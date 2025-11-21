@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bot, Terminal, HardDrive, Activity, Play, Pause, RefreshCw } from 'lucide-react';
+import { Bot, Terminal, HardDrive, Activity, Play, Pause, RefreshCw, AlertTriangle } from 'lucide-react';
 import { happenService, AgentState } from '../../services/happen-service';
 
 export const AgentMonitor = () => {
@@ -33,6 +33,15 @@ export const AgentMonitor = () => {
         return () => clearInterval(interval);
     }, []);
 
+    const getStatusColor = (status: string) => {
+        switch(status) {
+            case 'active': return 'bg-emerald-500 animate-pulse';
+            case 'waiting_approval': return 'bg-amber-500 animate-bounce';
+            case 'error': return 'bg-red-500';
+            default: return 'bg-gray-400';
+        }
+    };
+
     return (
         <div className="flex flex-col h-full">
             <div className="flex items-center justify-between mb-4 px-2">
@@ -53,7 +62,7 @@ export const AgentMonitor = () => {
                     </div>
                 ) : (
                     agents.map((agent) => (
-                        <div key={agent.id} className="p-3 rounded-lg bg-card border border-border shadow-sm">
+                        <div key={agent.id} className={`p-3 rounded-lg bg-card border ${agent.status === 'waiting_approval' ? 'border-amber-500/50 bg-amber-500/5' : 'border-border'} shadow-sm`}>
                             <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center space-x-2">
                                     <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center">
@@ -65,11 +74,10 @@ export const AgentMonitor = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                     <span className={`w-2 h-2 rounded-full ${
-                                         agent.status === 'active' ? 'bg-emerald-500 animate-pulse' : 
-                                         agent.status === 'error' ? 'bg-red-500' : 'bg-gray-400'
-                                     }`} />
-                                     <span className="text-[10px] capitalize text-muted-foreground">{agent.status}</span>
+                                     <span className={`w-2 h-2 rounded-full ${getStatusColor(agent.status)}`} />
+                                     <span className={`text-[10px] capitalize ${agent.status === 'waiting_approval' ? 'text-amber-500 font-bold' : 'text-muted-foreground'}`}>
+                                         {agent.status === 'waiting_approval' ? 'Needs Approval' : agent.status}
+                                     </span>
                                 </div>
                             </div>
 
@@ -79,6 +87,13 @@ export const AgentMonitor = () => {
                                     {agent.currentTask || "Idle - Waiting for instructions"}
                                 </div>
                             </div>
+                            
+                            {agent.status === 'waiting_approval' && (
+                                <div className="mb-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-[10px] text-amber-200 flex items-center gap-2">
+                                    <AlertTriangle className="w-3 h-3" />
+                                    <span>Agent halted. Go to Workbench to approve action.</span>
+                                </div>
+                            )}
 
                             <div className="flex flex-wrap gap-1">
                                 {agent.tools.map((tool) => (

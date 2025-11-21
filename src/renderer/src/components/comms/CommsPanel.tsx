@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { AgentRoster } from '../chat/AgentRoster';
 import { ChatFeed } from '../chat/ChatFeed';
+import { ChatInput } from '../chat/ChatInput';
 import { Agent, ChatMessage } from '../../types/control-room';
 import { chatService } from '../../services/chat.service';
+import { chatHistoryStorage } from '../../services/chat-history-storage';
+import { happenService } from '../../services/happen-service';
 import { AISettings } from '../settings/AISettings';
-import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogHeader } from '@/components/ui/dialog';
+import { ShadowPanel } from '../workbench/ShadowPanel';
+import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Settings, Cpu, Maximize2, Minimize2, X, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Settings, Cpu, Maximize2, Minimize2, X, ChevronLeft, Shield, Clock, Trash2, History } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
@@ -25,10 +28,14 @@ interface CommsPanelProps {
 }
 
 export const CommsPanel: React.FC<CommsPanelProps> = ({ mode, onModeChange }) => {
+    const [activeView, setActiveView] = useState<'chat' | 'shadow' | 'history'>('chat');
     const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
     const [selectedSwarmId, setSelectedSwarmId] = useState<string>('swarm-alpha');
     const [inputValue, setInputValue] = useState('');
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+    // Shadow Mode State
+    const [pendingShadowCount, setPendingShadowCount] = useState(0);
 
     // Mock Swarms
     const swarms: Swarm[] = [
@@ -58,39 +65,73 @@ export const CommsPanel: React.FC<CommsPanelProps> = ({ mode, onModeChange }) =>
     const [selectedModel, setSelectedModel] = useState<string>('');
 
     useEffect(() => {
-        // Load initial welcome message
-        setMessages([
-            {
-                id: '1',
-                agentId: 'system',
-                text: 'Guru AI Mission Control initialized. Context Graph loaded. Ready for instructions.',
-                timestamp: Date.now(),
-                type: 'log'
+        // Load initial history if available
+        const init = async () => {
+            const history = await chatHistoryStorage.loadHistory();
+            if (history.length > 0) {
+                setMessages(history);
+            } else {
+                setMessages([
+                    {
+                        id: '1',
+                        agentId: 'system',
+                        text: 'Guru AI Mission Control initialized. Context Graph loaded. Ready for instructions.',
+                        timestamp: Date.now(),
+                        type: 'log'
+                    }
+                ]);
             }
-        ]);
+        };
+        init();
 
         loadProviders();
+        checkShadowStatus();
+
+        // Subscribe to shadow updates to show badge
+        const unsubscribe = happenService.onShadowUpdate((actions) => {
+            setPendingShadowCount(actions.length);
+        });
+
+        return () => unsubscribe();
     }, []);
+
+    // Auto-save history on changes
+    useEffect(() => {
+        if (messages.length > 0) {
+            const timeout = setTimeout(() => {
+                chatHistoryStorage.saveHistory(messages);
+            }, 1000);
+            return () => clearTimeout(timeout);
+        }
+    }, [messages]);
+
+    const checkShadowStatus = async () => {
+        const actions = await happenService.getPendingShadowActions();
+        setPendingShadowCount(actions.length);
+    };
 
     const loadProviders = async () => {
         try {
             // @ts-ignore
-            if (!window.api?.ai?.getProviders) {
+            if (!window.api?.aiProvider?.list) {
                 console.warn('AI Providers API not available yet');
                 return;
             }
 
             // @ts-ignore
-            const list = await window.api.ai.getProviders();
-            setProviders(list);
+            const result = await window.api.aiProvider.list();
+            if (result.success) {
+                const list = result.data;
+                setProviders(list);
 
-            // Set default if not set
-            const configured = list.filter((p: any) => p.isConfigured);
-            if (configured.length > 0) {
-                // Default to first model of first configured provider
-                const p = configured[0];
-                if (p.models.length > 0) {
-                    setSelectedModel(`${p.id}:${p.models[0].id}`);
+                // Set default if not set
+                const configured = list.filter((p: any) => p.isConfigured);
+                if (configured.length > 0) {
+                    // Default to first model of first configured provider
+                    const p = configured[0];
+                    if (p.models.length > 0) {
+                        setSelectedModel(`${p.id}:${p.models[0]}`);
+                    }
                 }
             }
         } catch (error) {
@@ -98,13 +139,27 @@ export const CommsPanel: React.FC<CommsPanelProps> = ({ mode, onModeChange }) =>
         }
     };
 
-    const handleSend = async () => {
-        if (!inputValue.trim()) return;
+    const handleClearHistory = async () => {
+        if (confirm('Are you sure you want to clear all chat history?')) {
+            await chatHistoryStorage.clearHistory();
+            setMessages([{
+                id: Date.now().toString(),
+                agentId: 'system',
+                text: 'History cleared.',
+                timestamp: Date.now(),
+                type: 'log'
+            }]);
+        }
+    };
+
+    const handleSend = async (messageText?: string) => {
+        const textToSend = messageText || inputValue;
+        if (!textToSend.trim()) return;
 
         const userMsg: ChatMessage = {
             id: Date.now().toString(),
             agentId: 'user',
-            text: inputValue,
+            text: textToSend,
             timestamp: Date.now(),
             type: 'text'
         };
@@ -134,6 +189,7 @@ export const CommsPanel: React.FC<CommsPanelProps> = ({ mode, onModeChange }) =>
                 targetAgentId,
                 { providerId, modelId },
                 (update) => {
+                    console.log('[CommsPanel] Received stream update:', update.type, update.data);
                     setMessages(prev => {
                         const newMessages = [...prev];
                         const msgIndex = newMessages.findIndex(m => m.id === botMsgId);
@@ -145,7 +201,7 @@ export const CommsPanel: React.FC<CommsPanelProps> = ({ mode, onModeChange }) =>
                         switch (update.type) {
                             case 'status':
                                 currentThoughts.push({
-                                    id: Date.now().toString(),
+                                    id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                                     type: 'status',
                                     content: update.data.status,
                                     timestamp: Date.now()
@@ -155,7 +211,7 @@ export const CommsPanel: React.FC<CommsPanelProps> = ({ mode, onModeChange }) =>
                             case 'tool_call':
                                 const toolNames = update.data.tools.map((t: any) => t.name).join(', ');
                                 currentThoughts.push({
-                                    id: Date.now().toString(),
+                                    id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                                     type: 'tool_call',
                                     content: `Calling tools: ${toolNames}`,
                                     timestamp: Date.now(),
@@ -165,32 +221,52 @@ export const CommsPanel: React.FC<CommsPanelProps> = ({ mode, onModeChange }) =>
 
                             case 'tool_result':
                                 const { tool, success, error } = update.data;
-                                currentThoughts.push({
-                                    id: Date.now().toString(),
-                                    type: 'tool_result',
-                                    content: success ? `Tool '${tool}' completed` : `Tool '${tool}' failed: ${error}`,
-                                    timestamp: Date.now(),
-                                    metadata: update.data
-                                });
+                                // Find the last status step that matches "Executing {tool}..."
+                                const matchingStatusIndex = currentThoughts.map(t => t.content).lastIndexOf(`Executing ${tool}...`);
+
+                                if (matchingStatusIndex !== -1) {
+                                    // Update the existing step
+                                    currentThoughts[matchingStatusIndex] = {
+                                        ...currentThoughts[matchingStatusIndex],
+                                        type: 'tool_result',
+                                        content: success ? `Tool '${tool}' completed` : `Tool '${tool}' failed: ${error}`,
+                                        metadata: update.data
+                                    };
+                                } else {
+                                    // Fallback: add new step if not found
+                                    currentThoughts.push({
+                                        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                        type: 'tool_result',
+                                        content: success ? `Tool '${tool}' completed` : `Tool '${tool}' failed: ${error}`,
+                                        timestamp: Date.now(),
+                                        metadata: update.data
+                                    });
+                                }
                                 break;
 
                             case 'response':
-                                const responseText = typeof update.data === 'string'
-                                    ? update.data
-                                    : update.data.response || JSON.stringify(update.data);
+                                let responseText = '';
+                                if (typeof update.data === 'string') {
+                                    responseText = update.data;
+                                } else {
+                                    // Check if response property exists, even if empty string
+                                    if (typeof update.data.response === 'string') {
+                                        responseText = update.data.response;
+                                    } else {
+                                        responseText = JSON.stringify(update.data);
+                                    }
+                                }
 
                                 currentMsg.text = responseText;
-                                currentMsg.isThinking = false;
                                 break;
 
                             case 'error':
                                 currentThoughts.push({
-                                    id: Date.now().toString(),
+                                    id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                                     type: 'error',
                                     content: update.data.message,
                                     timestamp: Date.now()
                                 });
-                                currentMsg.isThinking = false;
                                 currentMsg.text = `Error: ${update.data.message}`;
                                 break;
                         }
@@ -201,6 +277,19 @@ export const CommsPanel: React.FC<CommsPanelProps> = ({ mode, onModeChange }) =>
                     });
                 }
             );
+
+            // Ensure thinking is turned off when stream completes
+            setMessages(prev => {
+                const newMessages = [...prev];
+                const msgIndex = newMessages.findIndex(m => m.id === botMsgId);
+                if (msgIndex !== -1) {
+                    newMessages[msgIndex] = {
+                        ...newMessages[msgIndex],
+                        isThinking: false
+                    };
+                }
+                return newMessages;
+            });
         } catch (error: any) {
             console.error('Chat error:', error);
             setMessages(prev => {
@@ -262,8 +351,13 @@ export const CommsPanel: React.FC<CommsPanelProps> = ({ mode, onModeChange }) =>
                     <div className="flex flex-col">
                         <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Target</span>
                         <div className="flex items-center gap-2 h-6">
-                            <span className={cn("text-xs font-medium", selectedAgentId ? "text-primary" : "text-green-500")}>
-                                {selectedAgentId ? activeAgents.find(a => a.id === selectedAgentId)?.name : 'Broadcast All'}
+                            <span className={cn("text-xs font-medium",
+                                activeView === 'shadow' ? "text-yellow-500" :
+                                    activeView === 'history' ? "text-purple-500" :
+                                        (selectedAgentId ? "text-primary" : "text-green-500"))}>
+                                {activeView === 'shadow' ? 'SHADOW PROTOCOL' :
+                                    activeView === 'history' ? 'HISTORY LOGS' :
+                                        (selectedAgentId ? activeAgents.find(a => a.id === selectedAgentId)?.name : 'Broadcast All')}
                             </span>
                         </div>
                     </div>
@@ -271,7 +365,7 @@ export const CommsPanel: React.FC<CommsPanelProps> = ({ mode, onModeChange }) =>
 
                 <div className="flex items-center gap-2">
                     {/* Model Switcher */}
-                    {mode !== 'compact' && (
+                    {mode !== 'compact' && activeView === 'chat' && (
                         <Select value={selectedModel} onValueChange={setSelectedModel}>
                             <SelectTrigger className="w-[160px] h-7 text-[10px] font-mono bg-secondary/50 border-border">
                                 <Cpu className="w-3 h-3 mr-2 text-muted-foreground" />
@@ -283,14 +377,14 @@ export const CommsPanel: React.FC<CommsPanelProps> = ({ mode, onModeChange }) =>
                                         <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground bg-muted/50">
                                             {provider.name}
                                         </div>
-                                        {provider.models.map((model: any) => (
+                                        {provider.models.map((model: string) => (
                                             <SelectItem
-                                                key={model.id}
-                                                value={`${provider.id}:${model.id}`}
+                                                key={model}
+                                                value={`${provider.id}:${model}`}
                                                 disabled={!provider.isConfigured}
                                                 className="text-[10px] font-mono pl-4"
                                             >
-                                                {model.name}
+                                                {model}
                                             </SelectItem>
                                         ))}
                                     </div>
@@ -349,13 +443,16 @@ export const CommsPanel: React.FC<CommsPanelProps> = ({ mode, onModeChange }) =>
             <div className="flex-1 flex overflow-hidden">
                 {/* Left Rail: Agent Selector (Visible in Sidebar/Full) */}
                 {mode !== 'compact' && (
-                    <div className="w-[60px] border-r border-border bg-muted/10 flex flex-col items-center py-4 gap-4">
+                    <div className="w-[60px] border-r border-border bg-muted/10 flex flex-col items-center py-4 gap-4 shrink-0">
                         {/* Swarm Broadcast Button */}
                         <button
-                            onClick={() => setSelectedAgentId(null)}
+                            onClick={() => {
+                                setActiveView('chat');
+                                setSelectedAgentId(null);
+                            }}
                             className={cn(
                                 "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200",
-                                !selectedAgentId
+                                activeView === 'chat' && !selectedAgentId
                                     ? cn(activeSwarm?.color, "text-white shadow-lg shadow-white/10")
                                     : "bg-secondary/50 hover:bg-accent text-muted-foreground hover:text-foreground border border-border"
                             )}
@@ -375,10 +472,13 @@ export const CommsPanel: React.FC<CommsPanelProps> = ({ mode, onModeChange }) =>
                         {activeAgents.map(agent => (
                             <button
                                 key={agent.id}
-                                onClick={() => setSelectedAgentId(agent.id)}
+                                onClick={() => {
+                                    setActiveView('chat');
+                                    setSelectedAgentId(agent.id);
+                                }}
                                 className={cn(
                                     "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 relative group",
-                                    selectedAgentId === agent.id
+                                    activeView === 'chat' && selectedAgentId === agent.id
                                         ? "bg-primary text-primary-foreground shadow-lg"
                                         : "bg-secondary/50 hover:bg-accent text-muted-foreground hover:text-foreground border border-border"
                                 )}
@@ -392,17 +492,96 @@ export const CommsPanel: React.FC<CommsPanelProps> = ({ mode, onModeChange }) =>
                                 )}
                             </button>
                         ))}
+
+                        {/* Spacer */}
+                        <div className="flex-1" />
+
+                        {/* History Toggle */}
+                        <button
+                            onClick={() => setActiveView(prev => prev === 'history' ? 'chat' : 'history')}
+                            className={cn(
+                                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 mb-2",
+                                activeView === 'history'
+                                    ? "bg-purple-500/20 text-purple-500 border-purple-500/50"
+                                    : "bg-secondary/50 hover:bg-accent text-muted-foreground hover:text-foreground border border-border"
+                            )}
+                            title="History Logs"
+                        >
+                            <History className="w-5 h-5" />
+                        </button>
+
+                        {/* Shadow Mode Toggle */}
+                        <div className="relative mb-2">
+                            <button
+                                onClick={() => setActiveView(prev => prev === 'shadow' ? 'chat' : 'shadow')}
+                                className={cn(
+                                    "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 relative",
+                                    activeView === 'shadow'
+                                        ? "bg-yellow-500/20 text-yellow-500 border-yellow-500/50"
+                                        : "bg-secondary/50 hover:bg-accent text-muted-foreground hover:text-foreground border border-border"
+                                )}
+                                title="Shadow Protocol Interceptor"
+                            >
+                                <Shield className="w-5 h-5" />
+                            </button>
+                            {pendingShadowCount > 0 && (
+                                <div className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-background animate-bounce">
+                                    {pendingShadowCount}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
 
-                {/* Chat Feed */}
-                <div className="flex-1 flex flex-col min-w-0 bg-background">
-                    <ChatFeed
-                        messages={messages}
-                        inputValue={inputValue}
-                        onInputChange={setInputValue}
-                        onSend={handleSend}
-                    />
+                {/* Main View */}
+                <div className="flex-1 flex flex-col min-w-0 bg-background relative">
+                    {activeView === 'chat' ? (
+                        <>
+                            <ChatFeed
+                                messages={messages}
+                            />
+                            <ChatInput
+                                onSend={(text, attachments) => {
+                                    handleSend(text);
+                                }}
+                                onClear={handleClearHistory}
+                                agentId={selectedAgentId || undefined}
+                            />
+                        </>
+                    ) : activeView === 'shadow' ? (
+                        <ShadowPanel />
+                    ) : (
+                        <div className="flex-1 flex flex-col bg-background">
+                            <div className="p-6 border-b border-border flex justify-between items-center">
+                                <div>
+                                    <h2 className="text-lg font-bold flex items-center">
+                                        <Clock className="w-5 h-5 mr-2 text-muted-foreground" />
+                                        Chat History
+                                    </h2>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        {messages.length} messages stored in local history
+                                    </p>
+                                </div>
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={handleClearHistory}
+                                    className="flex items-center text-xs"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                    Clear History
+                                </Button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                                <div className="text-center py-12 text-muted-foreground text-sm">
+                                    <History className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                                    <p>Currently viewing the active session.</p>
+                                    <p className="text-xs mt-2 opacity-70">Switch back to Chat to continue conversation.</p>
+                                </div>
+                                {/* We could render a list of past sessions here if we structured storage that way */}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Context Panel (Only in Full Mode) */}

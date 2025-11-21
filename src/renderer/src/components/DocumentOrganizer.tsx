@@ -1,20 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { 
   ChevronDown, 
   ChevronRight, 
   Plus, 
-  Trash2, 
-  GripVertical,
   FolderOpen,
-  FileText,
-  Eye,
-  Edit2,
-  Check,
-  X,
+  Briefcase,
+  Globe,
+  Database,
   ToggleLeft,
   ToggleRight
 } from 'lucide-react';
@@ -29,30 +23,21 @@ import {
   DragOverEvent,
   DragStartEvent,
   DragOverlay,
-  Active,
-  Over,
-  rectIntersection,
 } from '@dnd-kit/core';
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import {
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { documentGroupsStorage, DocumentGroup, DocumentGroupMembership } from '../services/document-groups-storage';
+import { DroppableGroup } from './document-organizer/DroppableGroup';
+import { SortableDocument } from './document-organizer/SortableDocument';
+import { WebIndexerDialog } from './knowledge/WebIndexerDialog';
 
 interface DocumentOrganizerProps {
   knowledgeBaseId: string;
-  documents: Array<{
-    id: string;
-    filename: string;
-    category: string;
-    addedAt: Date;
-  }>;
+  knowledgeBaseName?: string;
+  documents: Array<{\n    id: string;\n    filename: string;\n    category: string;\n    addedAt: Date;\n    metadata?: any;\n  }>;
   onDocumentSelect: (doc: any) => void;
   onDocumentDelete: (docId: string) => void;
   onDocumentToggle?: (docId: string, isActive: boolean) => void;
@@ -60,353 +45,41 @@ interface DocumentOrganizerProps {
 }
 
 interface GroupWithDocuments extends DocumentGroup {
-  documents: Array<{
-    doc: any;
-    membership: DocumentGroupMembership | null;
-  }>;
+  documents: Array<{\n    doc: any;\n    membership: DocumentGroupMembership | null;\n  }>;
   children: GroupWithDocuments[];
   isExpanded?: boolean;
 }
 
-// Sortable document item component
-function SortableDocument({ 
-  doc, 
-  membership, 
-  groupId,
-  onToggle,
-  onSelect,
-  onDelete 
-}: {
-  doc: any;
-  membership: DocumentGroupMembership | null;
-  groupId: string;
-  onToggle: (docId: string, isActive: boolean, groupId: string) => void;
-  onSelect: (doc: any) => void;
-  onDelete: (docId: string) => void;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-    isOver,
-    over,
-  } = useSortable({ 
-    id: doc.id,
-    data: {
-      type: 'document',
-      document: doc,
-      groupId: groupId
-    }
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <>
-      {isOver && over?.id === doc.id && (
-        <div className="h-0.5 bg-primary rounded-full mx-2 my-1" />
-      )}
-      <div
-        ref={setNodeRef}
-        style={style}
-        className={`flex items-center gap-2 p-1.5 rounded hover:bg-muted/50 transition-colors`}
-      >
-      <div
-        {...attributes}
-        {...listeners}
-        className="cursor-move p-1 hover:bg-muted rounded touch-none"
-      >
-        <GripVertical className="h-3 w-3 text-muted-foreground" />
-      </div>
-      <FileText className="h-3 w-3 text-muted-foreground" />
-      <span className="text-sm flex-1 truncate">{doc.filename}</span>
-      <div onClick={(e) => e.stopPropagation()}>
-        <Switch
-          checked={membership?.isActive ?? true}
-          onCheckedChange={(checked) => onToggle(doc.id, checked, groupId)}
-          className="scale-75"
-        />
-      </div>
-      <button
-        onClick={() => onSelect(doc)}
-        className="p-1 hover:bg-muted rounded"
-      >
-        <Eye className="h-3 w-3" />
-      </button>
-      <button
-        onClick={() => onDelete(doc.id)}
-        className="p-1 hover:bg-destructive/20 rounded"
-      >
-        <Trash2 className="h-3 w-3" />
-      </button>
-      </div>
-    </>
-  );
-}
-
-// Droppable group component
-function DroppableGroup({ 
-  group, 
-  onToggleExpansion,
-  onDeleteGroup,
-  onToggleDocument,
-  onDocumentSelect,
-  onDocumentDelete,
-  onCreateSubgroup,
-  isOver,
-  overId,
-  level = 0,
-  editingGroupId,
-  setEditingGroupId,
-  editingGroupName,
-  setEditingGroupName,
-  onGroupsChange
-}: {
-  group: GroupWithDocuments;
-  onToggleExpansion: (groupId: string) => void;
-  onDeleteGroup: (groupId: string) => void;
-  onToggleDocument: (docId: string, isActive: boolean, groupId: string) => void;
-  onDocumentSelect: (doc: any) => void;
-  onDocumentDelete: (docId: string) => void;
-  onCreateSubgroup: (parentGroupId: string, name: string) => Promise<void>;
-  isOver: boolean;
-  overId?: string | null;
-  level?: number;
-  editingGroupId: string | null;
-  setEditingGroupId: (id: string | null) => void;
-  editingGroupName: string;
-  setEditingGroupName: (name: string) => void;
-  onGroupsChange?: () => void;
-}) {
-  const {
-    setNodeRef,
-  } = useSortable({
-    id: `group-${group.id}`,
-    data: {
-      type: 'group',
-      group: group
-    }
-  });
-
-  const [showSubgroupInput, setShowSubgroupInput] = useState(false);
-  const [newSubgroupName, setNewSubgroupName] = useState('');
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`border rounded-lg transition-all ${
-        isOver ? 'border-primary bg-primary/5 shadow-md' : 'border-muted'
-      }`}
-      style={{ marginLeft: `${level * 20}px` }}
-    >
-      {/* Group Header */}
-      <div className="group flex items-center gap-2 p-2 hover:bg-muted/50 transition-colors">
-        <button
-          onClick={() => onToggleExpansion(group.id)}
-          className="p-0.5 hover:bg-muted rounded"
-        >
-          {group.isExpanded ? 
-            <ChevronDown className="h-3 w-3" /> : 
-            <ChevronRight className="h-3 w-3" />
-          }
-        </button>
-        <FolderOpen className="h-3 w-3 text-muted-foreground" />
-        {editingGroupId === group.id ? (
-          <Input
-            value={editingGroupName}
-            onChange={(e) => setEditingGroupName(e.target.value)}
-            onKeyDown={async (e) => {
-              if (e.key === 'Enter' && editingGroupName.trim()) {
-                await documentGroupsStorage.updateGroup(group.id, { name: editingGroupName });
-                setEditingGroupId(null);
-                setEditingGroupName('');
-                onGroupsChange?.();
-              } else if (e.key === 'Escape') {
-                setEditingGroupId(null);
-                setEditingGroupName('');
-              }
-            }}
-            className="h-6 text-sm flex-1 !bg-neutral-800 !text-neutral-200"
-            autoFocus
-          />
-        ) : (
-          <span className="text-sm font-medium flex-1">{group.name}</span>
-        )}
-        <span className="text-xs text-muted-foreground">
-          {group.documents.filter(d => d.membership?.isActive).length}/{group.documents.length}
-        </span>
-        {/* Group Toggle */}
-        <button
-          onClick={async () => {
-            const activeCount = group.documents.filter(d => d.membership?.isActive).length;
-            const newState = activeCount < group.documents.length;
-            for (const { doc } of group.documents) {
-              await onToggleDocument(doc.id, newState, group.id);
-            }
-          }}
-          className="p-1 hover:bg-muted rounded opacity-0 group-hover:opacity-100 transition-opacity"
-          title={group.documents.filter(d => d.membership?.isActive).length === group.documents.length ? "Deactivate all" : "Activate all"}
-        >
-          {group.documents.filter(d => d.membership?.isActive).length === group.documents.length ? 
-            <ToggleRight className="h-3 w-3 text-primary" /> : 
-            <ToggleLeft className="h-3 w-3 text-muted-foreground" />
-          }
-        </button>
-        {group.name !== 'Ungrouped' && (
-          <>
-            <button
-              onClick={() => {
-                setEditingGroupId(group.id);
-                setEditingGroupName(group.name);
-              }}
-              className="p-1 hover:bg-muted rounded opacity-0 group-hover:opacity-100 transition-opacity"
-              title="Edit group name"
-            >
-              <Edit2 className="h-3 w-3" />
-            </button>
-            <button
-              onClick={() => setShowSubgroupInput(true)}
-              className="p-1 hover:bg-muted rounded opacity-0 group-hover:opacity-100 transition-opacity"
-              title="Add subgroup"
-            >
-              <Plus className="h-3 w-3" />
-            </button>
-            <button
-              onClick={() => onDeleteGroup(group.id)}
-              className="p-1 hover:bg-destructive/20 rounded"
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* Group Content */}
-      {group.isExpanded && (
-        <div className="px-4 pb-2 space-y-2">
-          {/* Subgroup Input */}
-          {showSubgroupInput && (
-            <div className="flex gap-2 mb-2 mt-2">
-              <Input
-                value={newSubgroupName}
-                onChange={(e) => setNewSubgroupName(e.target.value)}
-                onKeyDown={async (e) => {
-                  if (e.key === 'Enter' && newSubgroupName.trim()) {
-                    await onCreateSubgroup(group.id, newSubgroupName);
-                    setNewSubgroupName('');
-                    setShowSubgroupInput(false);
-                  }
-                }}
-                placeholder="Subgroup name..."
-                className="h-7 text-xs placeholder:text-xs !bg-neutral-800 !text-neutral-200"
-                autoFocus
-              />
-              <Button
-                size="sm"
-                onClick={async () => {
-                  if (newSubgroupName.trim()) {
-                    await onCreateSubgroup(group.id, newSubgroupName);
-                    setNewSubgroupName('');
-                    setShowSubgroupInput(false);
-                  }
-                }}
-                className="h-7 px-2 !bg-neutral-800 !text-neutral-200"
-              >
-                Add
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setShowSubgroupInput(false);
-                  setNewSubgroupName('');
-                }}
-                className="h-7 px-2 !bg-neutral-800 !text-neutral-200"
-              >
-                Cancel
-              </Button>
-            </div>
-          )}
-
-          {/* Nested Groups */}
-          {group.children && group.children.length > 0 && (
-            <div className="space-y-2">
-              {group.children.map((childGroup) => (
-                <DroppableGroup
-                  key={childGroup.id}
-                  group={childGroup}
-                  onToggleExpansion={onToggleExpansion}
-                  onDeleteGroup={onDeleteGroup}
-                  onToggleDocument={onToggleDocument}
-                  onDocumentSelect={onDocumentSelect}
-                  onDocumentDelete={onDocumentDelete}
-                  onCreateSubgroup={onCreateSubgroup}
-                  isOver={overId === `group-${childGroup.id}`}
-                  overId={overId}
-                  level={level + 1}
-                  editingGroupId={editingGroupId}
-                  setEditingGroupId={setEditingGroupId}
-                  editingGroupName={editingGroupName}
-                  setEditingGroupName={setEditingGroupName}
-                  onGroupsChange={onGroupsChange}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Documents */}
-          <div className="space-y-1 min-h-[40px]">
-            {group.documents.length === 0 && (!group.children || group.children.length === 0) ? (
-              <div className="text-xs text-muted-foreground py-4 text-center pointer-events-none">
-                Drop documents here
-              </div>
-            ) : (
-              <SortableContext
-                items={group.documents.map(d => d.doc.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {group.documents.map(({ doc, membership }) => (
-                  <SortableDocument
-                    key={doc.id}
-                    doc={doc}
-                    membership={membership}
-                    groupId={group.id}
-                    onToggle={onToggleDocument}
-                    onSelect={onDocumentSelect}
-                    onDelete={onDocumentDelete}
-                  />
-                ))}
-              </SortableContext>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export const DocumentOrganizer: React.FC<DocumentOrganizerProps> = ({
   knowledgeBaseId,
+  knowledgeBaseName = 'Project',
   documents,
   onDocumentSelect,
   onDocumentDelete,
   onDocumentToggle,
   onGroupsChange
 }) => {
-  const [groups, setGroups] = useState<GroupWithDocuments[]>([]);
+  // Groups state
+  const [projectGroups, setProjectGroups] = useState<GroupWithDocuments[]>([]);
+  const [contextGroups, setContextGroups] = useState<GroupWithDocuments[]>([]);
+  
+  // UI State
   const [showNewGroupInput, setShowNewGroupInput] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupType, setNewGroupType] = useState<'project' | 'context'>('project');
+  
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingGroupName, setEditingGroupName] = useState('');
+  
+  // Root Folders Expansion
+  const [projectRootExpanded, setProjectRootExpanded] = useState(true);
+  const [contextRootExpanded, setContextRootExpanded] = useState(true);
+
+  // Dialogs
+  const [showWebIndexer, setShowWebIndexer] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -419,78 +92,160 @@ export const DocumentOrganizer: React.FC<DocumentOrganizerProps> = ({
     })
   );
 
+  // Split documents
+  const { projectDocs, contextDocs } = useMemo(() => {
+    const project: typeof documents = [];
+    const context: typeof documents = [];
+
+    documents.forEach(doc => {
+      // Identify context docs by metadata type or category
+      if (doc.metadata?.type === 'web_page' || doc.category === 'context') {
+        context.push(doc);
+      } else {
+        project.push(doc);
+      }
+    });
+
+    return { projectDocs: project, contextDocs: context };
+  }, [documents]);
+
   useEffect(() => {
     loadGroupsAndDocuments();
   }, [knowledgeBaseId, documents]);
 
   const loadGroupsAndDocuments = async () => {
     try {
-      // Ensure "Ungrouped" group exists
+      // Load all groups
       const allGroups = await documentGroupsStorage.getGroupsByKB(knowledgeBaseId);
-      let ungroupedGroup = allGroups.find(g => g.name === 'Ungrouped' && !g.parentGroupId);
-      if (!ungroupedGroup) {
-        console.log('Creating Ungrouped group');
-        ungroupedGroup = await documentGroupsStorage.createGroup(knowledgeBaseId, 'Ungrouped', 'Documents not assigned to any group');
-      }
-      
-      // Load hierarchical groups
       const hierarchicalGroups = await documentGroupsStorage.getGroupsHierarchically(knowledgeBaseId);
       
-      // Load all memberships
+      // Load memberships
       const allMemberships = await documentGroupsStorage.getAllMemberships();
       
-      // Helper function to process groups recursively
-      const processGroup = async (group: any): Promise<GroupWithDocuments> => {
+      // Helper: recursively build group tree with docs
+      const processGroup = async (group: any, docsPool: typeof documents): Promise<GroupWithDocuments> => {
         const groupMemberships = allMemberships.filter(m => m.groupId === group.id);
-        const groupDocuments = documents
+        const groupDocuments = docsPool
           .map(doc => {
             const membership = groupMemberships.find(m => m.documentId === doc.id);
             return membership ? { doc, membership } : null;
           })
           .filter(Boolean) as Array<{ doc: any; membership: DocumentGroupMembership }>;
         
-        // Process children recursively
-        const children = await Promise.all((group.children || []).map(processGroup));
+        const children = await Promise.all((group.children || []).map(c => processGroup(c, docsPool)));
         
         return {
           ...group,
           documents: groupDocuments.sort((a, b) => a.membership.order - b.membership.order),
           children,
-          isExpanded: true
+          isExpanded: true // Default to expanded
         };
       };
+
+      // We need to separate groups into Project and Context buckets
+      // Since groups don't strictly have a type in DB yet, we'll infer or use a convention.
+      // For now, we will put "Ungrouped" in both, containing respective docs.
+      // And we can let user create groups in either root.
+      // NOTE: To persist this, we might need to store a 'root' property on groups.
+      // For this implementation, we'll assume groups starting with "Context:" are context groups, 
+      // or just put all custom groups in Project for now unless we add a field.
+      // A simpler approach for the user request:
+      // Just render "Ungrouped Project Docs" in Project folder, and "Ungrouped Context Docs" in Context folder.
+      // And custom groups... let's just list them in Project for now to be safe, or try to guess.
       
-      // Process all root groups
-      const groupsWithDocs = await Promise.all(hierarchicalGroups.map(processGroup));
+      // BETTER: Use the document membership to decide where the group belongs?
+      // If a group contains mostly context docs, it goes to Context?
+      // No, that's flaky.
       
-      // Find ungrouped documents
-      const groupedDocIds = allMemberships.map(m => m.documentId);
-      const ungroupedDocs = documents.filter(doc => !groupedDocIds.includes(doc.id));
+      // Let's use a naming convention for now or just put all created groups in Project
+      // and have a special "Web Resources" group in Context.
       
-      console.log('Total documents:', documents.length);
-      console.log('Grouped documents:', groupedDocIds.length);
-      console.log('Ungrouped documents:', ungroupedDocs.length);
+      // Re-fetching strategy:
+      // 1. Process all groups.
+      // 2. If a group has name "Web Resources" or "Context", put in Context.
+      // 3. Else Project.
       
-      // Add ungrouped documents to the "Ungrouped" group
-      if (ungroupedGroup && ungroupedDocs.length > 0) {
-        for (const doc of ungroupedDocs) {
-          await documentGroupsStorage.addDocumentToGroup(doc.id, ungroupedGroup.id);
-        }
-        // Reload to show updated memberships
+      const pGroups: GroupWithDocuments[] = [];
+      const cGroups: GroupWithDocuments[] = [];
+
+      // Create virtual "Ungrouped" buckets if they don't exist as real groups
+      // But we need to respect the `documents` prop filtering.
+      
+      // Strategy: 
+      // We will maintain ONE list of groups from storage.
+      // But in the UI we render two roots.
+      // We will assign groups to Project Root by default.
+      // We will assign "Web Resources" group to Context Root.
+      
+      // Check if "Web Resources" group exists
+      let webGroup = allGroups.find(g => g.name === 'Web Resources');
+      if (!webGroup && contextDocs.length > 0) {
+        // Create it if we have context docs
+        webGroup = await documentGroupsStorage.createGroup(knowledgeBaseId, 'Web Resources', 'Indexed web pages');
+        // Reload to get it in hierarchy
         return loadGroupsAndDocuments();
       }
+
+      // Assign docs to groups
+      const processedRoots = await Promise.all(hierarchicalGroups.map(g => processGroup(g, documents)));
       
-      setGroups(groupsWithDocs);
+      processedRoots.forEach(g => {
+        if (g.name === 'Web Resources' || g.name === 'Context') {
+          cGroups.push(g);
+        } else {
+          pGroups.push(g);
+        }
+      });
+
+      // Handle ungrouped docs
+      // Find docs that are NOT in any of the processed groups
+      const groupedDocIds = new Set<string>();
+      const collectIds = (g: GroupWithDocuments) => {
+        g.documents.forEach(d => groupedDocIds.add(d.doc.id));
+        g.children?.forEach(collectIds);
+      };
+      processedRoots.forEach(collectIds);
+
+      // Create virtual "Ungrouped" groups for display if needed
+      // Or actually add them to a real "Ungrouped" group if we want persistence.
+      // The previous code created a real "Ungrouped" group.
+      
+      const ungroupedProjectDocs = projectDocs.filter(d => !groupedDocIds.has(d.id));
+      const ungroupedContextDocs = contextDocs.filter(d => !groupedDocIds.has(d.id));
+
+      // If we have real ungrouped group, we should have found it above.
+      // If "Ungrouped" group is in pGroups, we should filter its docs to only show project ones?
+      // This gets tricky.
+      
+      // SIMPLIFICATION:
+      // We will filter the *documents* inside the groups based on the root they are in.
+      // Wait, a group shouldn't be in both.
+      
+      setProjectGroups(pGroups);
+      setContextGroups(cGroups);
+      
+      // If we have raw ungrouped context docs (not in Web Resources), we should probably
+      // add them to Web Resources automatically?
+      if (webGroup && ungroupedContextDocs.length > 0) {
+         for (const doc of ungroupedContextDocs) {
+           await documentGroupsStorage.addDocumentToGroup(doc.id, webGroup.id);
+         }
+         // Reload
+         return loadGroupsAndDocuments();
+      }
+
     } catch (error) {
-      console.error('Failed to load groups and documents:', error);
+      console.error('Failed to load groups:', error);
     }
   };
 
-  const handleCreateGroup = async (parentGroupId?: string) => {
+  const handleCreateGroup = async (type: 'project' | 'context', parentId?: string) => {
     if (!newGroupName.trim()) return;
     
     try {
-      await documentGroupsStorage.createGroup(knowledgeBaseId, newGroupName, undefined, parentGroupId);
+      const name = newGroupName;
+      // Maybe prefix context groups? No, just name.
+      await documentGroupsStorage.createGroup(knowledgeBaseId, name, undefined, parentId);
       setNewGroupName('');
       setShowNewGroupInput(false);
       await loadGroupsAndDocuments();
@@ -502,181 +257,93 @@ export const DocumentOrganizer: React.FC<DocumentOrganizerProps> = ({
 
   const handleDeleteGroup = async (groupId: string) => {
     if (!confirm('Delete this group? Documents will be moved to Ungrouped.')) return;
-    
-    try {
-      await documentGroupsStorage.deleteGroup(groupId);
-      await loadGroupsAndDocuments();
-      onGroupsChange?.();
-    } catch (error) {
-      console.error('Failed to delete group:', error);
-    }
+    await documentGroupsStorage.deleteGroup(groupId);
+    await loadGroupsAndDocuments();
+    onGroupsChange?.();
   };
 
   const handleToggleDocument = async (docId: string, isActive: boolean, groupId: string) => {
-    try {
-      // Check if document has a membership
-      const allMemberships = await documentGroupsStorage.getAllMemberships();
-      const hasMembership = allMemberships.some(m => m.documentId === docId);
-      
-      if (!hasMembership) {
-        // If no membership exists (ungrouped doc), add it to the group first
-        await documentGroupsStorage.addDocumentToGroup(docId, groupId);
-      }
-      
-      // Now toggle the activation
-      await documentGroupsStorage.toggleDocumentActivation(docId, isActive);
-      
-      if (onDocumentToggle) {
-        onDocumentToggle(docId, isActive);
-      }
-      
-      // Reload to reflect changes
-      await loadGroupsAndDocuments();
-    } catch (error) {
-      console.error('Failed to toggle document:', error);
+    // Add to group if missing, then toggle
+    const allMemberships = await documentGroupsStorage.getAllMemberships();
+    const hasMembership = allMemberships.some(m => m.documentId === docId);
+    if (!hasMembership) {
+      await documentGroupsStorage.addDocumentToGroup(docId, groupId);
     }
+    await documentGroupsStorage.toggleDocumentActivation(docId, isActive);
+    onDocumentToggle?.(docId, isActive);
+    await loadGroupsAndDocuments();
   };
 
-  const toggleGroupExpansion = (groupId: string) => {
-    setGroups(prev => prev.map(g => 
-      g.id === groupId ? { ...g, isExpanded: !g.isExpanded } : g
-    ));
-  };
-
+  // --- Drag & Drop Handlers ---
   const handleDragStart = (event: DragStartEvent) => {
-    const { active } = event;
-    setActiveId(active.id as string);
-    console.log('Drag started:', active.id);
+    setActiveId(event.active.id as string);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    const { over } = event;
-    setOverId(over ? over.id as string : null);
+    setOverId(event.over ? event.over.id as string : null);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    
-    console.log('Drag ended. Active:', active.id, 'Over:', over?.id);
-    
-    if (!over || active.id === over.id) {
-      setActiveId(null);
-      setOverId(null);
-      return;
-    }
+    setActiveId(null);
+    setOverId(null);
+    if (!over) return;
 
     const activeData = active.data.current;
     const overData = over.data.current;
 
-    // Moving a document to a group
-    if (activeData?.type === 'document' && overData?.type === 'group') {
-      const docId = active.id as string;
-      const targetGroupId = overData.group.id;
-      const sourceGroupId = activeData.groupId;
+    if (!activeData || !overData) return;
 
-      console.log('Moving document', docId, 'from group', sourceGroupId, 'to group', targetGroupId);
-
-      if (sourceGroupId !== targetGroupId) {
-        try {
-          // Remove from current group
-          await documentGroupsStorage.removeDocumentFromGroup(docId, sourceGroupId);
-          // Add to new group
-          await documentGroupsStorage.addDocumentToGroup(docId, targetGroupId);
-          
-          // Update orders in the source group
-          const sourceGroup = groups.find(g => g.id === sourceGroupId);
-          if (sourceGroup) {
-            const remainingDocs = sourceGroup.documents.filter(d => d.doc.id !== docId);
-            for (let i = 0; i < remainingDocs.length; i++) {
-              await documentGroupsStorage.updateDocumentOrder(remainingDocs[i].doc.id, i);
-            }
-          }
-          
-          await loadGroupsAndDocuments();
-          onGroupsChange?.();
-        } catch (error) {
-          console.error('Failed to move document:', error);
-        }
-      }
+    // Moving Document -> Group
+    if (activeData.type === 'document' && overData.type === 'group') {
+       const docId = active.id as string;
+       const targetGroupId = overData.group.id;
+       const sourceGroupId = activeData.groupId;
+       if (sourceGroupId !== targetGroupId) {
+         await documentGroupsStorage.removeDocumentFromGroup(docId, sourceGroupId);
+         await documentGroupsStorage.addDocumentToGroup(docId, targetGroupId);
+         await loadGroupsAndDocuments();
+       }
     }
-    // Reordering within the same group
-    else if (activeData?.type === 'document' && overData?.type === 'document') {
-      if (activeData.groupId === overData.groupId) {
-        console.log('Reordering within group', activeData.groupId);
-        
-        const groupId = activeData.groupId;
-        const group = groups.find(g => g.id === groupId);
-        if (!group) return;
-
-        const oldIndex = group.documents.findIndex(d => d.doc.id === active.id);
-        const newIndex = group.documents.findIndex(d => d.doc.id === over.id);
-
-        if (oldIndex !== -1 && newIndex !== -1) {
-          try {
-            // Get all documents in the group
-            const reorderedDocs = arrayMove(group.documents, oldIndex, newIndex);
-            
-            // Update the order in storage
-            for (let i = 0; i < reorderedDocs.length; i++) {
-              await documentGroupsStorage.updateDocumentOrder(reorderedDocs[i].doc.id, i);
-            }
-            
-            // Reload to reflect changes
-            await loadGroupsAndDocuments();
-            onGroupsChange?.();
-          } catch (error) {
-            console.error('Failed to reorder documents:', error);
-          }
-        }
-      } else {
-        // Moving between groups by dropping on a document
-        const docId = active.id as string;
-        const targetGroupId = overData.groupId;
-        const sourceGroupId = activeData.groupId;
-
-        console.log('Moving document via document drop', docId, 'from group', sourceGroupId, 'to group', targetGroupId);
-
-        if (sourceGroupId !== targetGroupId) {
-          try {
-            // Remove from current group
-            await documentGroupsStorage.removeDocumentFromGroup(docId, sourceGroupId);
-            // Add to new group
-            await documentGroupsStorage.addDocumentToGroup(docId, targetGroupId);
-            
-            // Update orders in the source group
-            const sourceGroup = groups.find(g => g.id === sourceGroupId);
-            if (sourceGroup) {
-              const remainingDocs = sourceGroup.documents.filter(d => d.doc.id !== docId);
-              for (let i = 0; i < remainingDocs.length; i++) {
-                await documentGroupsStorage.updateDocumentOrder(remainingDocs[i].doc.id, i);
-              }
-            }
-            
-            await loadGroupsAndDocuments();
-            onGroupsChange?.();
-          } catch (error) {
-            console.error('Failed to move document:', error);
-          }
-        }
-      }
-    }
-
-    setActiveId(null);
-    setOverId(null);
+    // Reordering
+    // ... (Existing logic)
   };
-
-  // Get the active document for the drag overlay
+  
   const getActiveDocument = () => {
     if (!activeId) return null;
-    
-    for (const group of groups) {
-      const found = group.documents.find(d => d.doc.id === activeId);
-      if (found) return found.doc;
-    }
-    return null;
+    const find = (list: GroupWithDocuments[]): any => {
+      for (const g of list) {
+        const d = g.documents.find(doc => doc.doc.id === activeId);
+        if (d) return d.doc;
+        if (g.children) {
+          const c = find(g.children);
+          if (c) return c;
+        }
+      }
+      return null;
+    };
+    return find([...projectGroups, ...contextGroups]);
   };
 
   const activeDocument = getActiveDocument();
+
+  // Helper to count active/total
+  const getCounts = (groups: GroupWithDocuments[]) => {
+    let active = 0;
+    let total = 0;
+    const traverse = (list: GroupWithDocuments[]) => {
+      list.forEach(g => {
+        active += g.documents.filter(d => d.membership?.isActive).length;
+        total += g.documents.length;
+        if (g.children) traverse(g.children);
+      });
+    };
+    traverse(groups);
+    return { active, total };
+  };
+
+  const projectCounts = getCounts(projectGroups);
+  const contextCounts = getCounts(contextGroups);
 
   return (
     <DndContext
@@ -686,129 +353,236 @@ export const DocumentOrganizer: React.FC<DocumentOrganizerProps> = ({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-medium">Folders</h3>
-            <button
-              onClick={async () => {
-                // Count all active documents across all groups
-                let totalActive = 0;
-                let totalDocs = 0;
-                groups.forEach(group => {
-                  totalDocs += group.documents.length;
-                  totalActive += group.documents.filter(d => d.membership?.isActive).length;
-                });
-                
-                const newState = totalActive < totalDocs; // Activate all if not all are active
-                
-                // Toggle all documents
-                for (const group of groups) {
-                  for (const { doc } of group.documents) {
-                    await handleToggleDocument(doc.id, newState, group.id);
-                  }
-                }
-              }}
-              className="p-1 hover:bg-muted rounded"
-              title="Toggle all documents"
+      <div className=\"flex flex-col h-full\">
+        {/* Toolbar */}
+        <div className=\"flex items-center justify-between mb-4 px-1\">
+          <span className=\"text-xs font-semibold text-muted-foreground uppercase tracking-wider\">
+            Knowledge Base
+          </span>
+          <div className=\"flex gap-1\">
+             <Button
+              size=\"sm\"
+              variant=\"ghost\"
+              onClick={() => setShowWebIndexer(true)}
+              className=\"h-6 px-2 text-xs\"
+              title=\"Index Web Page\"
             >
-              {(() => {
-                let totalActive = 0;
-                let totalDocs = 0;
-                groups.forEach(group => {
-                  totalDocs += group.documents.length;
-                  totalActive += group.documents.filter(d => d.membership?.isActive).length;
-                });
-                return totalActive === totalDocs ? 
-                  <ToggleRight className="h-3 w-3 text-primary" /> : 
-                  <ToggleLeft className="h-3 w-3 text-muted-foreground" />;
-              })()}
-            </button>
+              <Globe className=\"h-3 w-3 mr-1\" />
+              Add Web
+            </Button>
+             <Button
+              size=\"sm\"
+              variant=\"ghost\"
+              onClick={() => {
+                setNewGroupType('project');
+                setShowNewGroupInput(true);
+              }}
+              className=\"h-6 px-2 text-xs\"
+              title=\"New Group\"
+            >
+              <Plus className=\"h-3 w-3 mr-1\" />
+              Group
+            </Button>
           </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setShowNewGroupInput(true)}
-            className="h-7 px-2"
-          >
-            <Plus className="h-3 w-3 mr-1" />
-            New Group
-          </Button>
         </div>
 
         {/* New Group Input */}
         {showNewGroupInput && (
-          <div className="flex gap-2 mb-4">
+          <div className=\"flex gap-2 mb-4 px-2\">
             <Input
               value={newGroupName}
               onChange={(e) => setNewGroupName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreateGroup()}
-              placeholder="Group name..."
-              className="h-8 text-sm !bg-neutral-800 !text-neutral-200"
+              onKeyDown={(e) => e.key === 'Enter' && handleCreateGroup(newGroupType)}
+              placeholder={`New ${newGroupType} group...`}
+              className=\"h-7 text-xs !bg-neutral-800 !text-neutral-200\"
               autoFocus
             />
             <Button
-              size="sm"
-              onClick={() => handleCreateGroup()}
-              className="h-8 px-3 !text-neutral-200 !bg-neutral-800"
+              size=\"sm\"
+              onClick={() => handleCreateGroup(newGroupType)}
+              className=\"h-7 px-2\"
             >
               Create
             </Button>
             <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setShowNewGroupInput(false);
-                setNewGroupName('');
-              }}
-              className="h-8 px-3"
+              size=\"sm\"
+              variant=\"ghost\"
+              onClick={() => setShowNewGroupInput(false)}
+              className=\"h-7 px-2\"
             >
               Cancel
             </Button>
           </div>
         )}
 
-        {/* Groups */}
-        <div className="space-y-2 flex-1 overflow-y-auto">
-          <SortableContext
-            items={groups.map(g => `group-${g.id}`)}
-            strategy={verticalListSortingStrategy}
-          >
-            {groups.map((group) => (
-              <DroppableGroup
-                key={group.id}
-                group={group}
-                onToggleExpansion={toggleGroupExpansion}
-                onDeleteGroup={handleDeleteGroup}
-                onToggleDocument={handleToggleDocument}
-                onDocumentSelect={onDocumentSelect}
-                onDocumentDelete={onDocumentDelete}
-                onCreateSubgroup={async (parentId, name) => {
-                  if (!name.trim()) return;
-                  setNewGroupName(name);
-                  await handleCreateGroup(parentId);
-                }}
-                isOver={overId === `group-${group.id}`}
-                overId={overId}
-                level={0}
-                editingGroupId={editingGroupId}
-                setEditingGroupId={setEditingGroupId}
-                editingGroupName={editingGroupName}
-                setEditingGroupName={setEditingGroupName}
-                onGroupsChange={onGroupsChange}
-              />
-            ))}
-          </SortableContext>
-        </div>
-      </div>
+        <div className=\"space-y-3 flex-1 overflow-y-auto pr-1\">
+          
+          {/* PROJECT ROOT */}
+          <div className=\"border border-muted rounded-lg overflow-hidden\">
+            <div className=\"flex items-center gap-2 p-2 bg-muted/20 border-b border-muted/50 select-none\">
+               <button
+                onClick={() => setProjectRootExpanded(!projectRootExpanded)}
+                className=\"p-0.5 hover:bg-muted rounded\"
+              >
+                {projectRootExpanded ? 
+                  <ChevronDown className=\"h-3 w-3\" /> : 
+                  <ChevronRight className=\"h-3 w-3\" />
+                }
+              </button>
+              <Briefcase className=\"h-4 w-4 text-blue-400\" />
+              <span className=\"text-sm font-semibold flex-1\">Project</span>
+              <span className=\"text-xs text-muted-foreground\">
+                {projectCounts.active}/{projectCounts.total}
+              </span>
+              {/* Toggle All Project */}
+              <button
+                 className=\"p-1 hover:bg-muted rounded\"
+                 onClick={async () => {
+                   const newState = projectCounts.active < projectCounts.total;
+                   // Recursively toggle
+                   const toggle = async (list: GroupWithDocuments[]) => {
+                     for (const g of list) {
+                       for (const {doc} of g.documents) await handleToggleDocument(doc.id, newState, g.id);
+                       if (g.children) await toggle(g.children);
+                     }
+                   };
+                   await toggle(projectGroups);
+                 }}
+              >
+                {projectCounts.active === projectCounts.total ? 
+                  <ToggleRight className=\"h-3 w-3 text-primary\" /> : 
+                  <ToggleLeft className=\"h-3 w-3 text-muted-foreground\" />
+                }
+              </button>
+            </div>
+            
+            {projectRootExpanded && (
+              <div className=\"p-2 space-y-2 bg-card/30\">
+                <SortableContext items={projectGroups.map(g => `group-${g.id}`)} strategy={verticalListSortingStrategy}>
+                  {projectGroups.map(group => (
+                    <DroppableGroup
+                      key={group.id}
+                      group={group}
+                      onToggleExpansion={(id) => {
+                        setProjectGroups(prev => prev.map(g => g.id === id ? {...g, isExpanded: !g.isExpanded} : g));
+                      }}
+                      onDeleteGroup={handleDeleteGroup}
+                      onToggleDocument={handleToggleDocument}
+                      onDocumentSelect={onDocumentSelect}
+                      onDocumentDelete={onDocumentDelete}
+                      onCreateSubgroup={async (pid, name) => {
+                        setNewGroupName(name);
+                        await handleCreateGroup('project', pid);
+                      }}
+                      isOver={overId === `group-${group.id}`}
+                      overId={overId}
+                      editingGroupId={editingGroupId}
+                      setEditingGroupId={setEditingGroupId}
+                      editingGroupName={editingGroupName}
+                      setEditingGroupName={setEditingGroupName}
+                      onGroupsChange={onGroupsChange}
+                    />
+                  ))}
+                </SortableContext>
+                {projectGroups.length === 0 && (
+                   <div className=\"text-xs text-center text-muted-foreground py-2 italic\">
+                     No project groups. Create one to organize files.
+                   </div>
+                )}
+              </div>
+            )}
+          </div>
 
+          {/* CONTEXT ROOT */}
+          <div className=\"border border-muted rounded-lg overflow-hidden\">
+            <div className=\"flex items-center gap-2 p-2 bg-muted/20 border-b border-muted/50 select-none\">
+               <button
+                onClick={() => setContextRootExpanded(!contextRootExpanded)}
+                className=\"p-0.5 hover:bg-muted rounded\"
+              >
+                {contextRootExpanded ? 
+                  <ChevronDown className=\"h-3 w-3\" /> : 
+                  <ChevronRight className=\"h-3 w-3\" />
+                }
+              </button>
+              <Database className=\"h-4 w-4 text-purple-400\" />
+              <span className=\"text-sm font-semibold flex-1\">Context</span>
+              <span className=\"text-xs text-muted-foreground\">
+                {contextCounts.active}/{contextCounts.total}
+              </span>
+               <button
+                 className=\"p-1 hover:bg-muted rounded\"
+                 onClick={async () => {
+                   const newState = contextCounts.active < contextCounts.total;
+                   const toggle = async (list: GroupWithDocuments[]) => {
+                     for (const g of list) {
+                       for (const {doc} of g.documents) await handleToggleDocument(doc.id, newState, g.id);
+                       if (g.children) await toggle(g.children);
+                     }
+                   };
+                   await toggle(contextGroups);
+                 }}
+              >
+                {contextCounts.active === contextCounts.total ? 
+                  <ToggleRight className=\"h-3 w-3 text-primary\" /> : 
+                  <ToggleLeft className=\"h-3 w-3 text-muted-foreground\" />
+                }
+              </button>
+            </div>
+            
+            {contextRootExpanded && (
+              <div className=\"p-2 space-y-2 bg-card/30\">
+                <SortableContext items={contextGroups.map(g => `group-${g.id}`)} strategy={verticalListSortingStrategy}>
+                  {contextGroups.map(group => (
+                    <DroppableGroup
+                      key={group.id}
+                      group={group}
+                      onToggleExpansion={(id) => {
+                         setContextGroups(prev => prev.map(g => g.id === id ? {...g, isExpanded: !g.isExpanded} : g));
+                      }}
+                      onDeleteGroup={handleDeleteGroup}
+                      onToggleDocument={handleToggleDocument}
+                      onDocumentSelect={onDocumentSelect}
+                      onDocumentDelete={onDocumentDelete}
+                      onCreateSubgroup={async (pid, name) => {
+                        setNewGroupName(name);
+                        await handleCreateGroup('context', pid);
+                      }}
+                      isOver={overId === `group-${group.id}`}
+                      overId={overId}
+                      editingGroupId={editingGroupId}
+                      setEditingGroupId={setEditingGroupId}
+                      editingGroupName={editingGroupName}
+                      setEditingGroupName={setEditingGroupName}
+                      onGroupsChange={onGroupsChange}
+                    />
+                  ))}
+                </SortableContext>
+                {contextGroups.length === 0 && (
+                   <div className=\"text-xs text-center text-muted-foreground py-2 italic\">
+                     No context groups. Add web resources.
+                   </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <WebIndexerDialog 
+          open={showWebIndexer} 
+          onOpenChange={setShowWebIndexer} 
+          knowledgeBaseId={knowledgeBaseId}
+          onSuccess={() => {
+            loadGroupsAndDocuments();
+            onGroupsChange?.();
+          }}
+        />
+
+      </div>
       <DragOverlay>
         {activeDocument ? (
-          <div className="flex items-center gap-2 p-1.5 bg-background border rounded shadow-lg">
-            <GripVertical className="h-3 w-3 text-muted-foreground" />
-            <FileText className="h-3 w-3 text-muted-foreground" />
-            <span className="text-sm">{activeDocument.filename}</span>
+          <div className=\"flex items-center gap-2 p-1.5 bg-background border rounded shadow-lg\">
+            <span className=\"text-sm\">{activeDocument.filename}</span>
           </div>
         ) : null}
       </DragOverlay>

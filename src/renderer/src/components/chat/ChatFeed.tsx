@@ -1,34 +1,93 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { cn } from '../../lib/utils';
 import { ChatMessage } from '../../types/control-room';
-import { User, Bot, Terminal } from 'lucide-react';
+import { User, Bot, Terminal, ArrowUp } from 'lucide-react';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { ChainOfThought } from './ChainOfThought';
 
 interface ChatFeedProps {
     messages: ChatMessage[];
-    inputValue: string;
-    onInputChange: (value: string) => void;
-    onSend: () => void;
+    // Deprecated props below, kept for compatibility but ignored
+    inputValue?: string;
+    onInputChange?: (value: string) => void;
+    onSend?: () => void;
 }
 
-export const ChatFeed = ({ messages, inputValue, onInputChange, onSend }: ChatFeedProps) => {
+const MESSAGES_PER_PAGE = 20;
+
+export const ChatFeed = ({ messages }: ChatFeedProps) => {
     const bottomRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [visibleCount, setVisibleCount] = useState(MESSAGES_PER_PAGE);
+    const [autoScroll, setAutoScroll] = useState(true);
+
+    // Update visible count when messages array changes drastically (e.g. clear or new chat)
+    // or when a new message comes in at the end.
+    useEffect(() => {
+        // If we receive a new message, we might want to show it
+        // But for large histories, we start with a subset.
+        if (messages.length <= MESSAGES_PER_PAGE) {
+            setVisibleCount(messages.length);
+        }
+    }, [messages.length]);
+
+    const visibleMessages = messages.slice(-visibleCount);
+    const hasMore = visibleCount < messages.length;
 
     useEffect(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+        if (autoScroll) {
+            bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [visibleMessages, autoScroll]);
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            onSend();
+    const handleScroll = () => {
+        if (containerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+            
+            // If scrolled to top and has more messages, load more
+            if (scrollTop === 0 && hasMore) {
+                // Save current scroll height to maintain position
+                const oldHeight = scrollHeight;
+                
+                setVisibleCount(prev => Math.min(prev + MESSAGES_PER_PAGE, messages.length));
+                
+                // Restore scroll position (approximate)
+                requestAnimationFrame(() => {
+                    if (containerRef.current) {
+                        containerRef.current.scrollTop = containerRef.current.scrollHeight - oldHeight;
+                    }
+                });
+            }
+
+            // Check if user is at bottom
+            const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+            setAutoScroll(isAtBottom);
         }
     };
 
+    const loadAll = () => {
+        setVisibleCount(messages.length);
+    };
+
     return (
-        <div className="flex-1 flex flex-col min-h-0 bg-[">
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 flex flex-col min-h-0 bg-background">
+            <div 
+                ref={containerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto p-6 space-y-6"
+            >
+                {hasMore && (
+                    <div className="flex justify-center pt-2 pb-4">
+                        <button 
+                            onClick={loadAll}
+                            className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 bg-secondary/50 px-3 py-1 rounded-full transition-colors"
+                        >
+                            <ArrowUp className="w-3 h-3" />
+                            Load full history ({messages.length - visibleCount} more)
+                        </button>
+                    </div>
+                )}
+
                 {messages.length === 0 && (
                     <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
                         <Terminal className="w-12 h-12 mb-4" />
@@ -36,7 +95,7 @@ export const ChatFeed = ({ messages, inputValue, onInputChange, onSend }: ChatFe
                     </div>
                 )}
 
-                {messages.map((msg) => (
+                {visibleMessages.map((msg) => (
                     <div key={msg.id} className={cn(
                         "flex space-x-4 max-w-3xl",
                         msg.agentId === 'user' ? "ml-auto flex-row-reverse space-x-reverse" : ""
@@ -54,7 +113,7 @@ export const ChatFeed = ({ messages, inputValue, onInputChange, onSend }: ChatFe
                         {/* Content */}
                         <div className={cn(
                             "flex-1 min-w-0",
-                            msg.agentId === 'user' ? "text-right" : "text-left"
+                            "text-left"
                         )}>
                             <div className="flex items-center space-x-2 mb-1 text-[10px] font-mono text-muted-foreground uppercase tracking-wider"
                                 style={{ flexDirection: msg.agentId === 'user' ? 'row-reverse' : 'row' }}>
@@ -89,22 +148,6 @@ export const ChatFeed = ({ messages, inputValue, onInputChange, onSend }: ChatFe
                     </div>
                 ))}
                 <div ref={bottomRef} />
-            </div>
-
-            {/* Input Area */}
-            <div className="p-4 border-t border-border bg-background/50 backdrop-blur-sm shrink-0">
-                <div className="relative">
-                    <textarea
-                        value={inputValue}
-                        onChange={(e) => onInputChange(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Transmit orders..."
-                        className="w-full bg-background border border-border p-3 pr-12 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary resize-none h-12 min-h-[48px] max-h-[200px]"
-                    />
-                    <div className="absolute right-2 bottom-2 text-[10px] text-muted-foreground font-mono">
-                        CMD+ENTER
-                    </div>
-                </div>
             </div>
         </div>
     );

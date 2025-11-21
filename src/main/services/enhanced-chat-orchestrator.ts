@@ -7,6 +7,34 @@ import { aiManager } from './ai-manager';
 import { lanceDBManager } from '../storage/lancedb-manager';
 import { allTools, executeTool, getToolsForOpenAI, getToolsForAnthropic, getToolsForGemini } from './ai-tools';
 
+// Safe logging utility to prevent EPIPE errors when stdout/stderr is disconnected
+const safeLog = (...args: any[]) => {
+  try {
+    console.log(...args);
+  } catch (error: any) {
+    // Silently ignore EPIPE errors (broken pipe)
+    if (error.code !== 'EPIPE') {
+      // For other errors, try to use console.error as fallback
+      try {
+        console.error('Logging error:', error.message);
+      } catch {
+        // If even console.error fails, just ignore
+      }
+    }
+  }
+};
+
+const safeError = (...args: any[]) => {
+  try {
+    console.error(...args);
+  } catch (error: any) {
+    // Silently ignore EPIPE errors
+    if (error.code !== 'EPIPE') {
+      // Can't do much here if console.error itself is broken
+    }
+  }
+};
+
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
@@ -69,7 +97,7 @@ export class EnhancedChatOrchestrator {
       this.conversations.set(convId, context);
     }
 
-    console.log(`[EnhancedChatOrchestrator] Processing message for ${agentId} in conversation ${convId}`);
+    safeLog(`[EnhancedChatOrchestrator] Processing message for ${agentId} in conversation ${convId}`);
 
     // 1. Build system prompt with context
     const systemPrompt = this.buildSystemPrompt(agentId, contextGraph);
@@ -109,7 +137,7 @@ export class EnhancedChatOrchestrator {
 
       // 6. Auto-index important parts of the conversation
       if (modelConfig.autoIndexContext) {
-        this.autoIndexContext(context).catch(console.error);
+        this.autoIndexContext(context).catch(safeError);
       }
 
       return {
@@ -119,7 +147,7 @@ export class EnhancedChatOrchestrator {
       };
 
     } catch (error: any) {
-      console.error('[EnhancedChatOrchestrator] Error:', error);
+      safeError('[EnhancedChatOrchestrator] Error:', error);
       return {
         response: `Error: ${error.message}`,
         conversationId: convId
@@ -158,26 +186,26 @@ export class EnhancedChatOrchestrator {
     let tools;
     if (providerId === 'anthropic') {
       tools = getToolsForAnthropic();
-    } else if (providerId === 'google') {
+    } else if (providerId === 'gemini') {
       tools = getToolsForGemini();
     } else {
       tools = getToolsForOpenAI();
     }
 
     let turn = 0;
-    const MAX_TURNS = 100;
+    const MAX_TURNS = 75;
     let finalResponse = '';
     let lastToolCalls: any[] = [];
 
-    console.log(`[generateWithTools] Starting tool loop with MAX_TURNS=${MAX_TURNS}`);
+    safeLog(`[generateWithTools] Starting tool loop with MAX_TURNS=${MAX_TURNS}`);
 
     while (turn < MAX_TURNS) {
       try {
-        console.log(`[generateWithTools] Turn ${turn + 1}/${MAX_TURNS}`);
+        safeLog(`[generateWithTools] Turn ${turn + 1}/${MAX_TURNS}`);
 
         // Call AI with tools
         const result = await this.callAIWithTools(currentMessages, tools as any[], providerId, modelId);
-        console.log(`[generateWithTools] AI response:`, {
+        safeLog(`[generateWithTools] AI response:`, {
           hasContent: !!result.content,
           contentLength: result.content?.length || 0,
           hasToolCalls: !!result.tool_calls,
@@ -187,7 +215,7 @@ export class EnhancedChatOrchestrator {
         // If no tool calls, we are done
         if (!result.tool_calls || result.tool_calls.length === 0) {
           finalResponse = result.content || '';
-          console.log(`[generateWithTools] Completed without tool calls. Response length: ${finalResponse.length}`);
+          safeLog(`[generateWithTools] Completed without tool calls. Response length: ${finalResponse.length}`);
           break;
         }
 
@@ -202,7 +230,7 @@ export class EnhancedChatOrchestrator {
         currentMessages.push(assistantMsg);
         lastToolCalls = result.tool_calls;
 
-        console.log(`[generateWithTools] Executing ${result.tool_calls.length} tool(s):`,
+        safeLog(`[generateWithTools] Executing ${result.tool_calls.length} tool(s):`,
           result.tool_calls.map((tc: any) => tc.function?.name || tc.name));
 
         // Execute tool calls
@@ -221,7 +249,7 @@ export class EnhancedChatOrchestrator {
 
         turn++;
       } catch (error: any) {
-        console.error('[generateWithTools] Error in tool loop:', error);
+        safeError('[generateWithTools] Error in tool loop:', error);
         finalResponse = `Error executing tools: ${error.message}\n\nStack: ${error.stack}`;
         break;
       }
@@ -233,11 +261,16 @@ export class EnhancedChatOrchestrator {
     }
 
     if (!finalResponse && lastToolCalls.length > 0) {
-      console.warn('[generateWithTools] No final response but tool calls were made. Adding default message.');
-      finalResponse = 'Tool execution completed, but no final response was generated.';
+      safeLog('[generateWithTools] No final response but tool calls were made. Adding default message.');
+      finalResponse = 'I completed the requested operations but did not generate a text response. Please let me know if you need more details.';
     }
 
-    console.log(`[generateWithTools] Finished. Total turns: ${turn}, Response length: ${finalResponse.length}`);
+    if (!finalResponse && turn === 0) {
+      safeError('[generateWithTools] No response generated and no turns executed. This indicates an error.');
+      finalResponse = 'I apologize, but I encountered an error and was unable to generate a response.';
+    }
+
+    safeLog(`[generateWithTools] Finished. Total turns: ${turn}, Response length: ${finalResponse.length}`);
 
     return {
       response: finalResponse,
@@ -259,35 +292,45 @@ export class EnhancedChatOrchestrator {
   }
 
   /**
+   * Call AI with tools (streaming)
+   */
+  private async *callAIWithToolsStream(
+    messages: ChatMessage[],
+    tools: any[],
+    providerId: string,
+    modelId: string
+  ): AsyncGenerator<{ content?: string; tool_calls?: any[] }> {
+    yield* aiManager.generateWithToolsStream(messages, providerId, modelId, tools);
+  }
+
+  /**
    * Execute tool calls
    */
   private async executeToolCalls(toolCalls: any[]): Promise<any[]> {
-    const results = [];
-
-    for (const call of toolCalls) {
+    const results = await Promise.all(toolCalls.map(async (call) => {
       try {
         const toolName = call.function?.name || call.name;
         const args = typeof call.function?.arguments === 'string'
           ? JSON.parse(call.function.arguments)
           : call.input || call.function?.arguments;
 
-        console.log(`Executing tool: ${toolName}`, args);
+        safeLog(`Executing tool: ${toolName}`, args.filePath || args);
         const result = await executeTool(toolName, args);
 
-        results.push({
+        return {
           id: call.id,
           name: toolName,
           result
-        });
+        };
       } catch (error: any) {
-        console.error(`Error executing tool ${call.function?.name}:`, error);
-        results.push({
+        safeError(`Error executing tool ${call.function?.name}:`, error);
+        return {
           id: call.id,
           name: call.function?.name,
           result: { success: false, error: error.message }
-        });
+        };
       }
-    }
+    }));
 
     return results;
   }
@@ -326,7 +369,7 @@ export class EnhancedChatOrchestrator {
 
       return context;
     } catch (error) {
-      console.error('Error retrieving context:', error);
+      safeError('Error retrieving context:', error);
       return '';
     }
   }
@@ -344,7 +387,12 @@ You have access to powerful tools to:
 - Index conversations for future reference
 - Read and write files, and execute terminal commands
 
-IMPORTANT: You must use the provided tools to perform actions. DO NOT use pseudo-tags like <tool_code> or write code blocks expecting them to run automatically. You must explicitly call the available tools using the function calling mechanism.
+IMPORTANT GUIDELINES:
+1. **Output Format**: Always output your final response in **GitHub Flavored Markdown**. Use code blocks for code, lists for steps, and bold/italics for emphasis.
+2. **Tool Usage**: You must use the provided tools to perform actions. DO NOT use pseudo-tags like <tool_code> or write code blocks expecting them to run automatically.
+3. **Parallel Execution**: You can and should make **multiple tool calls in a single turn** when they are independent (e.g. reading multiple files, searching and reading). This significantly improves speed.
+4. **File Editing**: When reading code files, use the contentBase64 field. When writing code files, provide contentBase64 to avoid encoding issues. For text/markdown files, use regular content field.
+5. **Efficiency**: Be efficient. Avoid chaining more than 5 tool calls without providing a status update or checkpoint to the user. If a task is complex, break it down.
 
 Use these tools proactively to maintain context and help the user effectively.`;
 
@@ -430,10 +478,10 @@ Use these tools proactively to maintain context and help the user effectively.`;
           tags: [context.agentId, 'auto-indexed']
         });
 
-        console.log(`Auto-indexed conversation context for ${context.conversationId}`);
+        safeLog(`Auto-indexed conversation context for ${context.conversationId}`);
       }
     } catch (error) {
-      console.error('Error auto-indexing context:', error);
+      safeError('Error auto-indexing context:', error);
     }
   }
 
@@ -441,7 +489,7 @@ Use these tools proactively to maintain context and help the user effectively.`;
    * Check if provider supports tools
    */
   private providerSupportsTools(providerId: string): boolean {
-    return ['openai', 'anthropic', 'google'].includes(providerId.toLowerCase());
+    return ['openai', 'anthropic', 'google', 'gemini'].includes(providerId.toLowerCase());
   }
 
   /**
@@ -524,16 +572,22 @@ Use these tools proactively to maintain context and help the user effectively.`;
       // 4. Generate response with tool calling and stream updates
       yield { type: 'status', data: { status: 'Generating response...' } };
 
-      const { providerId, modelId, enableTools } = modelConfig;
+      const { providerId, modelId, enableTools = true } = modelConfig; // Default enableTools to true
+      safeLog('[processMessageStream] Model config:', { providerId, modelId, enableTools });
       const supportsTools = this.providerSupportsTools(providerId);
+      safeLog('[processMessageStream] Provider supports tools:', supportsTools);
 
       if (!enableTools || !supportsTools) {
+        safeLog('[processMessageStream] Using non-tool mode');
         const prompt = context.messages.map(m => `${m.role}: ${m.content}`).join('\n\n');
+        safeLog('[processMessageStream] Prompt length:', prompt.length);
+
         const response = await aiManager.generateText(prompt, providerId, modelId, {
           maxTokens: 2000,
           temperature: 0.7
         });
 
+        safeLog('[processMessageStream] Non-tool response length:', response.length);
         yield { type: 'response', data: { response, conversationId: convId } };
         return;
       }
@@ -542,7 +596,7 @@ Use these tools proactively to maintain context and help the user effectively.`;
       let tools;
       if (providerId === 'anthropic') {
         tools = getToolsForAnthropic();
-      } else if (providerId === 'google') {
+      } else if (providerId === 'gemini') {
         tools = getToolsForGemini();
       } else {
         tools = getToolsForOpenAI();
@@ -550,18 +604,47 @@ Use these tools proactively to maintain context and help the user effectively.`;
 
       let currentMessages = [...context.messages];
       let turn = 0;
-      const MAX_TURNS = 100;
+      const MAX_TURNS = 75;
       let finalResponse = '';
       let lastToolCalls: any[] = [];
 
       while (turn < MAX_TURNS) {
         try {
-          yield { type: 'status', data: { status: `AI thinking... (step ${turn + 1}/${MAX_TURNS})` } };
+          yield { type: 'status', data: { status: `AI thinking... (step ${turn + 1})` } };
 
-          const result = await this.callAIWithTools(currentMessages, tools as any[], providerId, modelId);
+          const stream = this.callAIWithToolsStream(currentMessages, tools as any[], providerId, modelId);
+
+          let result: { content: string; tool_calls?: any[] } = { content: '' };
+
+          for await (const chunk of stream) {
+            safeLog('[processMessageStream] Received chunk:', {
+              hasContent: !!chunk.content,
+              contentLength: chunk.content?.length || 0,
+              hasToolCalls: !!chunk.tool_calls,
+              toolCallsCount: chunk.tool_calls?.length || 0
+            });
+
+            if (chunk.content) {
+              result.content = chunk.content;
+              // Yield combined text (previous turns + current turn)
+              const combinedText = finalResponse + (finalResponse ? '\n\n' : '') + result.content;
+              safeLog('[processMessageStream] Yielding response. Combined length:', combinedText.length);
+              yield { type: 'response', data: { response: combinedText, conversationId: convId } };
+            }
+            if (chunk.tool_calls) {
+              result.tool_calls = chunk.tool_calls;
+            }
+          }
+
+          safeLog(`[processMessageStream] Turn ${turn + 1}: content length=${result.content?.length || 0}, tool_calls=${result.tool_calls?.length || 0}`);
+
+          // Accumulate content from this turn
+          if (result.content && result.content.trim().length > 0) {
+            finalResponse += (finalResponse ? '\n\n' : '') + result.content;
+          }
 
           if (!result.tool_calls || result.tool_calls.length === 0) {
-            finalResponse = result.content || '';
+            safeLog(`[processMessageStream] No tool calls, breaking. finalResponse length: ${finalResponse.length}`);
             break;
           }
 
@@ -588,6 +671,7 @@ Use these tools proactively to maintain context and help the user effectively.`;
           // Execute tools and yield results
           for (const toolCall of result.tool_calls) {
             const toolName = toolCall.function?.name || toolCall.name;
+            safeLog(`[processMessageStream] Executing tool: ${toolName}`);
             yield { type: 'status', data: { status: `Executing ${toolName}...` } };
 
             try {
@@ -595,21 +679,24 @@ Use these tools proactively to maintain context and help the user effectively.`;
                 ? JSON.parse(toolCall.function.arguments)
                 : toolCall.input || toolCall.function?.arguments;
 
-              const result = await executeTool(toolName, args);
+              safeLog(`[processMessageStream] Tool ${toolName} args:`, args);
+              const toolResult = await executeTool(toolName, args);
+              safeLog(`[processMessageStream] Tool ${toolName} completed successfully`);
 
               yield {
                 type: 'tool_result',
-                data: { tool: toolName, success: true, result: result }
+                data: { tool: toolName, success: true, result: toolResult }
               };
 
               currentMessages.push({
                 role: 'tool',
-                content: JSON.stringify(result),
+                content: JSON.stringify(toolResult),
                 name: toolName,
                 tool_call_id: toolCall.id,
                 timestamp: Date.now()
               });
             } catch (error: any) {
+              safeError(`[processMessageStream] Tool ${toolName} failed:`, error);
               yield {
                 type: 'tool_result',
                 data: { tool: toolName, success: false, error: error.message }
@@ -627,6 +714,7 @@ Use these tools proactively to maintain context and help the user effectively.`;
 
           turn++;
         } catch (error: any) {
+          safeError(`[processMessageStream] Error in turn ${turn + 1}:`, error);
           yield { type: 'error', data: { message: error.message, stack: error.stack } };
           finalResponse = `Error: ${error.message}`;
           break;
@@ -636,6 +724,14 @@ Use these tools proactively to maintain context and help the user effectively.`;
       if (turn >= MAX_TURNS) {
         finalResponse = `I've reached the maximum number of tool steps (${MAX_TURNS}). The task may require breaking down into smaller parts.`;
       }
+
+      // If finalResponse is still empty after all turns, this might indicate an error
+      if (!finalResponse && turn > 0) {
+        safeLog(`[processMessageStream] Empty final response after ${turn} turns. Last tool calls:`, lastToolCalls);
+        finalResponse = 'I completed the requested operations but did not generate a text response. Please let me know if you need more details.';
+      }
+
+      safeLog(`[processMessageStream] Sending final response. Length: ${finalResponse.length}, turns: ${turn}`);
 
       // 5. Add final response
       context.messages.push({
@@ -647,7 +743,7 @@ Use these tools proactively to maintain context and help the user effectively.`;
 
       // 6. Auto-index if enabled
       if (modelConfig.autoIndexContext) {
-        this.autoIndexContext(context).catch(console.error);
+        this.autoIndexContext(context).catch(safeError);
       }
 
       yield {
@@ -661,6 +757,7 @@ Use these tools proactively to maintain context and help the user effectively.`;
       };
 
     } catch (error: any) {
+      safeError('[processMessageStream] Fatal error:', error);
       yield { type: 'error', data: { message: error.message, stack: error.stack } };
     }
   }

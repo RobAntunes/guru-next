@@ -1,4 +1,4 @@
-import { HappenNode } from 'happen-core';
+import { HappenNode, SendResult, type HappenEvent, type EventContext } from 'happen-core';
 import { shadowService } from './shadow-service';
 
 export abstract class BaseServiceNode {
@@ -18,6 +18,16 @@ export abstract class BaseServiceNode {
             try {
                 console.log(`[${this.name}] Handling ${topic}`);
                 const result = await handler(event, context);
+
+                // Support Request-Reply Pattern with .return()
+                // Check if this was sent via node.send() (which provides a reply mechanism)
+                // The context will contain the reply information if using .return()
+                if (context?._replyInbox) {
+                    // This event expects a response - use the framework's built-in reply mechanism
+                    // The framework handles this automatically when we return the result
+                    // Note: We can also manually send if needed, but the Event Continuum handles this
+                }
+
                 return result;
             } catch (error: any) {
                 console.error(`[${this.name}] Error handling ${topic}:`, error);

@@ -1,393 +1,94 @@
-/**
- * IPC Handlers for Electron
- * Bridge between renderer process and main process services
- */
+import { ipcMain, dialog, shell } from 'electron'
+import { readFile } from 'fs/promises'
+import { join, basename, extname } from 'path'
+import { readdir, stat } from 'fs/promises'
+import { aiModelService } from './ai-model-service'
+import { vectorStoreService } from './vector-store-service'
+import { documentIndexer } from './services/document-indexer'
+import { webIndexer } from './services/web-indexer'
+import { wasmVM } from './wasm-vm'
+import { fileStorage } from './file-storage'
+import { providerManager } from './services/provider-manager'
+import { enhancedChatOrchestrator } from './services/enhanced-chat-orchestrator'
+import { happenManager } from './services/happen/happen-manager'
+import { shadowService } from './services/happen/shadow-service'
+import { allTools, executeTool } from './services/ai-tools'
+import { getDirectoryFiles, searchFiles } from './file-handlers'
+import { memoryService } from './services/memory-service'
 
-import { ipcMain } from 'electron';
-import { aiModelService } from './ai-model-service';
-import { vectorStoreService } from './vector-store-service';
-import { lanceDBManager } from './storage/lancedb-manager';
-import { wasmVM } from './wasm-vm';
-import { fileStorage } from './file-storage';
-import { chatOrchestrator } from './services/chat-orchestrator';
-import { aiManager } from './services/ai-manager';
-import {
-  openFileDialog,
-  openFolderDialog,
-  readFileContent,
-  readFileAsBase64,
-  getFileInfo,
-  getDirectoryFiles,
-  processUploadedFiles
-} from './file-handlers';
-import { registerTaskExecutionHandlers } from './ipc-handlers/task-execution';
-import { registerHappenHandlers } from './ipc-handlers/happen-handlers';
-import { documentIndexer } from './services/document-indexer';
-import { enhancedChatOrchestrator } from './services/enhanced-chat-orchestrator';
-import { executeTool, allTools } from './services/ai-tools';
-
-/**
- * Register all IPC handlers
- */
-export function registerIPCHandlers(): void {
-  console.log('Registering IPC handlers...');
-
-  // Register Guru Pro handlers
-  registerTaskExecutionHandlers();
-
-  // Register Happen Agent handlers
-  registerHappenHandlers();
-
-  // Chat Handler (legacy) - Redirect to Enhanced
-  ipcMain.handle('chat:send', async (_event, message: string, agentId: string, contextGraph: any, modelConfig: any) => {
+export function registerIPCHandlers() {
+  // File Handlers
+  ipcMain.handle('file:openDialog', async (_, options) => {
     try {
-      // Use enhanced orchestrator but with default settings if not specified
-      const result = await enhancedChatOrchestrator.processMessage(
-        message,
-        agentId,
-        contextGraph,
-        {
-          ...modelConfig,
-          enableTools: true, // Force enable tools
-          autoIndexContext: true
-        }
-      );
-      return { success: true, data: result };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  // Enhanced Chat Handler with tool support
-  ipcMain.handle('chat:send-enhanced', async (_event, message: string, agentId: string, contextGraph: any, modelConfig: any, conversationId?: string) => {
-    try {
-      const result = await enhancedChatOrchestrator.processMessage(
-        message,
-        agentId,
-        contextGraph,
-        {
-          ...modelConfig,
-          enableTools: true,
-          autoIndexContext: true
-        },
-        conversationId
-      );
-      return { success: true, data: result };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  // Streaming Chat Handler
-  ipcMain.handle('chat:send-stream', async (_event, message: string, agentId: string, contextGraph: any, modelConfig: any, conversationId?: string) => {
-    try {
-      const stream = enhancedChatOrchestrator.processMessageStream(
-        message,
-        agentId,
-        contextGraph,
-        {
-          ...modelConfig,
-          enableTools: true,
-          autoIndexContext: true
-        },
-        conversationId
-      );
-
-      for await (const update of stream) {
-        _event.sender.send('chat:stream-update', update);
+      const result = await dialog.showOpenDialog(options)
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, canceled: true }
       }
-
-      return { success: true };
+      return { success: true, data: result.filePaths }
     } catch (error: any) {
-      return { success: false, error: error.message };
+      return { success: false, error: error.message }
     }
-  });
-
-  // Get conversation context
-  ipcMain.handle('chat:get-conversation', async (_event, conversationId: string) => {
-    try {
-      const conversation = enhancedChatOrchestrator.getConversation(conversationId);
-      return { success: true, data: conversation };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  // AI Tools Handlers
-  ipcMain.handle('tools:list', async () => {
-    try {
-      const tools = allTools.map(t => ({
-        name: t.name,
-        description: t.description,
-        parameters: t.parameters
-      }));
-      return { success: true, data: tools };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('tools:execute', async (_event, toolName: string, args: any) => {
-    try {
-      const result = await executeTool(toolName, args);
-      return { success: true, data: result };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  // AI Settings Handlers
-  ipcMain.handle('ai:set-key', (_event, providerId: string, key: string) => {
-    aiManager.setApiKey(providerId, key);
-    return { success: true };
-  });
-
-  ipcMain.handle('ai:get-providers', () => {
-    return aiManager.getAllProviders().map(p => ({
-      id: p.id,
-      name: p.name,
-      models: p.models,
-      isConfigured: p.isConfigured()
-    }));
-  });
-
-  // Memory/LanceDB handlers
-  ipcMain.handle('memory:stats', async () => {
-    try {
-      const stats = await lanceDBManager.getStats();
-      return { success: true, data: stats };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('memory:add', async (_event, memory: any) => {
-    try {
-      await lanceDBManager.addMemory(memory);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('memory:search', async (_event, params: { query: string; vector: number[]; limit?: number }) => {
-    try {
-      const results = await lanceDBManager.searchMemories(params.query, params.vector, params.limit);
-      return { success: true, data: results };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('pattern:track', async (_event, pattern: any) => {
-    try {
-      await lanceDBManager.trackPattern(pattern);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('insight:generate', async () => {
-    try {
-      const insights = await lanceDBManager.generateInsights();
-      return { success: true, data: insights };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('insight:list', async () => {
-    try {
-      const insights = await lanceDBManager.listInsights();
-      return { success: true, data: insights };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('insight:dismiss', async (_event, id: string) => {
-    try {
-      await lanceDBManager.dismissInsight(id);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('document:index-pdf', async (_event, filePath: string) => {
-    try {
-      // TODO: Implement PDF indexing
-      return { success: false, error: 'Not implemented yet' };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('document:search', async (_event, params: any) => {
-    try {
-      // Generate a dummy 384-dimensional vector if not provided
-      const vector = params.vector && params.vector.length === 384
-        ? params.vector
-        : Array(384).fill(0);
-
-      const results = await lanceDBManager.searchDocuments(params.query, vector, {
-        fileTypes: params.fileTypes,
-        maxResults: params.maxResults
-      });
-      return { success: true, data: results };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('document:get-chunks', async (_event, documentId: string) => {
-    try {
-      const chunks = await lanceDBManager.getDocumentChunks(documentId);
-      return { success: true, data: chunks };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('document:get-all', async () => {
-    try {
-      const documents = await lanceDBManager.getAllDocuments();
-      return { success: true, data: documents };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('document:delete', async (_event, documentId: string) => {
-    try {
-      await lanceDBManager.deleteDocument(documentId);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('document:select-file', async () => {
-    try {
-      const files = await openFileDialog({ multiple: false });
-      return { success: true, data: files?.[0] || null };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('document:index-files', async (_event, filePaths: string[]) => {
-    try {
-      const result = await documentIndexer.indexFiles(filePaths);
-      return { success: true, data: result };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('document:index-file', async (_event, filePath: string) => {
-    try {
-      const result = await documentIndexer.indexFile(filePath);
-      return { success: result.success, data: result };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('spec:index', async (_event, spec: any) => {
-    try {
-      // Convert spec to markdown
-      let content = `# ${spec.name}\n\n${spec.description}\n\n`;
-
-      if (spec.sections) {
-        for (const section of spec.sections) {
-          content += `## ${section.name}\n${section.description || ''}\n\n`;
-          if (section.fields) {
-            for (const field of section.fields) {
-              const value = spec.values?.[field.id];
-              if (value) {
-                content += `### ${field.name}\n${value}\n\n`;
-              }
-            }
-          }
-        }
-      }
-
-      const documentId = spec.id;
-      const vector = Array(384).fill(0); // Placeholder
-
-      await lanceDBManager.addDocumentChunk({
-        document_id: documentId,
-        chunk_id: 'spec-full',
-        content,
-        vector,
-        position: 0,
-        file_path: `specs/${documentId}`,
-        file_type: 'spec',
-        title: spec.name,
-        chunk_tokens: Math.ceil(content.length / 4),
-        metadata: JSON.stringify({
-          type: 'spec',
-          projectId: spec.projectId,
-          version: spec.version,
-          status: spec.status
-        })
-      });
-
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  // File system handlers
-  ipcMain.handle('file:openDialog', async (_event, options?: any) => {
-    try {
-      const files = await openFileDialog(options);
-      return { success: true, data: files };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
+  })
 
   ipcMain.handle('file:openFolderDialog', async () => {
     try {
-      const folder = await openFolderDialog();
-      return { success: true, data: folder };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
+      const result = await dialog.showOpenDialog({
+        properties: ['openDirectory']
+      })
 
-  ipcMain.handle('file:readContent', async (_event, filePath: string) => {
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, canceled: true }
+      }
+
+      return { success: true, data: result.filePaths[0] }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+
+  ipcMain.handle('file:getCwd', async () => {
     try {
-      const content = await readFileContent(filePath);
-      return { success: true, data: content };
+      return { success: true, data: process.cwd() }
     } catch (error: any) {
-      return { success: false, error: error.message };
+      return { success: false, error: error.message }
     }
-  });
+  })
 
-  ipcMain.handle('file:readBase64', async (_event, filePath: string) => {
+  ipcMain.handle('file:readContent', async (_, filePath) => {
     try {
-      const content = await readFileAsBase64(filePath);
-      return { success: true, data: content };
-    } catch (error: any) {
-      return { success: false, error: error.message };
+      const content = await readFile(filePath, 'utf-8')
+      return { success: true, data: content }
+    } catch (error: unknown) {
+      return { success: false, error: (error as Error).message }
     }
-  });
+  })
 
-  ipcMain.handle('file:getInfo', async (_event, filePath: string) => {
+  ipcMain.handle('file:readBase64', async (_, filePath) => {
     try {
-      const info = await getFileInfo(filePath);
-      return { success: true, data: info };
+      const buffer = await readFile(filePath);
+      return { success: true, data: buffer.toString('base64') }
+    } catch (error: unknown) {
+      return { success: false, error: (error as Error).message }
+    }
+  });
+
+  ipcMain.handle('file:getInfo', async (_, filePath) => {
+    try {
+      const stats = await stat(filePath);
+      const data = {
+        size: stats.size,
+        created: stats.birthtime,
+        modified: stats.mtime,
+        isDirectory: stats.isDirectory(),
+        isFile: stats.isFile()
+      };
+      return { success: true, data };
     } catch (error: any) {
       return { success: false, error: error.message };
     }
   });
 
-  ipcMain.handle('file:getDirectoryFiles', async (_event, dirPath: string, recursive?: boolean) => {
+  ipcMain.handle('file:getDirectoryFiles', async (_, dirPath, recursive) => {
     try {
       const files = await getDirectoryFiles(dirPath, recursive);
       return { success: true, data: files };
@@ -396,326 +97,287 @@ export function registerIPCHandlers(): void {
     }
   });
 
-  ipcMain.handle('file:processUploads', async (_event, filePaths: string[]) => {
+  ipcMain.handle('file:search', async (_, rootDir, query, limit) => {
     try {
-      const processed = await processUploadedFiles(filePaths);
-      return { success: true, data: processed };
+      // Default to cwd if no rootDir provided
+      const searchRoot = rootDir || process.cwd();
+      const files = await searchFiles(searchRoot, query || '', limit || 20);
+      return { success: true, data: files };
     } catch (error: any) {
       return { success: false, error: error.message };
     }
   });
 
-  // AI Model Service handlers
+  // Document Indexing Handlers
+  ipcMain.handle('document:index-file', async (_, filePath) => {
+    return await documentIndexer.indexFile(filePath)
+  })
+
+  ipcMain.handle('document:index-files', async (_, filePaths) => {
+    return await documentIndexer.indexFiles(filePaths)
+  })
+
+  // Web Indexer Handler - Supports options object for crawling
+  ipcMain.handle('document:index-web', async (_, options) => {
+    return await webIndexer.indexWeb(options)
+  })
+
+  // Legacy support for simple URL string
+  ipcMain.handle('document:index-url', async (_, url) => {
+    return await webIndexer.indexWeb({ url, depth: 0 })
+  })
+
+  ipcMain.handle('document:search', async (_, { query, fileTypes, maxResults }) => {
+    // Fallback to file search if document index is empty or not ready
+    try {
+      // Just search files in CWD for now to mimic Cursor behavior on unindexed projects
+      const files = await searchFiles(process.cwd(), query, maxResults || 10);
+      return files.map(f => ({
+        id: f.path,
+        filePath: f.path,
+        fileName: f.name,
+        metadata: { title: f.name }
+      }));
+    } catch (e) {
+      return [];
+    }
+  })
+
+  // AI Handlers
   ipcMain.handle('ai:initialize', async () => {
+    return await aiModelService.initialize()
+  })
+
+  ipcMain.handle('ai:generateText', async (_, prompt, options) => {
+    return await aiModelService.generateText(prompt, options)
+  })
+
+  ipcMain.handle('ai:generateEmbedding', async (_, text) => {
+    return await aiModelService.generateEmbedding(text)
+  })
+
+  // AI Provider Management Handlers
+  ipcMain.handle('ai-provider:list', async () => {
     try {
-      await aiModelService.initialize();
-      await vectorStoreService.initialize();
+      const providers = await providerManager.listProviders()
+      return { success: true, data: providers }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+
+  ipcMain.handle('ai-provider:set-key', async (_, provider, apiKey, model) => {
+    try {
+      await providerManager.initializeProvider(provider, apiKey)
+      return { success: true }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+
+  ipcMain.handle('ai-provider:check-key', async (_, provider) => {
+    try {
+      const hasKey = await providerManager.hasApiKey(provider)
+      return { success: true, data: hasKey }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+
+  ipcMain.handle('ai-provider:remove-key', async (_, provider) => {
+    try {
+      await providerManager.removeApiKey(provider)
+      return { success: true }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+
+  ipcMain.handle('ai-provider:get-active', async () => {
+    try {
+      const providers = await providerManager.listProviders()
+      const activeProvider = providers.find(p => p.isConfigured)
+      return { success: true, data: activeProvider || null }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+
+  // Vector Store Handlers
+  ipcMain.handle('vector:addDocuments', async (_, kbId, docs) => {
+    return await vectorStoreService.addDocuments(kbId, docs)
+  })
+
+  ipcMain.handle('vector:search', async (_, kbId, query, options) => {
+    return await vectorStoreService.search(kbId, query, options)
+  })
+
+  ipcMain.handle('vector:getStats', async (_, kbId) => {
+    return await vectorStoreService.getStats(kbId)
+  })
+
+  ipcMain.handle('vector:deleteKnowledgeBase', async (_, kbId) => {
+    return await vectorStoreService.deleteKnowledgeBase(kbId)
+  })
+
+  // Memory Handlers
+  ipcMain.handle('memory:add', async (_, memory) => {
+    return await memoryService.addMemory(memory)
+  })
+
+  ipcMain.handle('memory:search', async (_, { query, limit }) => {
+    return await memoryService.searchMemories(query, limit)
+  })
+
+  ipcMain.handle('memory:stats', async () => {
+    return await memoryService.getStats()
+  })
+
+  // Happen Agents & Shadow Mode
+  ipcMain.handle('happen:list-agents', () => {
+    try {
+      const agents = happenManager.getAgents()
+      return { success: true, data: agents }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+
+  ipcMain.handle('happen:send-task', async (_, agentId, prompt, contextData) => {
+    try {
+      const result = await happenManager.dispatchTask(agentId, prompt, contextData)
+      // Ensure consistent return format for renderer
+      if (result.success && result.output !== undefined && result.data === undefined) {
+        return { ...result, data: result.output }
+      }
+      return result
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+
+  ipcMain.handle('happen:shadow:get-pending', () => {
+    try {
+      const actions = shadowService.getPendingActions()
+      return { success: true, data: actions }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+
+  ipcMain.handle('happen:shadow:approve', async (_, { actionId, modifiedContent }) => {
+    return await shadowService.approveAction(actionId, modifiedContent)
+  })
+
+  ipcMain.handle('happen:shadow:reject', (_, { actionId }) => {
+    return shadowService.rejectAction(actionId)
+  })
+
+  ipcMain.handle('happen:shadow:set-mode', (_, { enabled }) => {
+    shadowService.setEnabled(enabled)
+    return { success: true, enabled }
+  })
+
+  // Storage Handlers
+  ipcMain.handle('storage:read', async (_, collection, id) => {
+    const item = await fileStorage.readFile(collection, id)
+    if (!item) return { success: false, error: 'File not found' }
+    return { success: true, data: item }
+  })
+
+  ipcMain.handle('storage:write', async (_, collection, id, data) => {
+    await fileStorage.writeFile(collection, id, data)
+    return { success: true }
+  })
+
+  ipcMain.handle('storage:delete', async (_, collection, id) => {
+    await fileStorage.deleteFile(collection, id)
+    return { success: true }
+  })
+
+  ipcMain.handle('storage:list', async (_, collection) => {
+    const items = await fileStorage.listFiles(collection)
+    return { success: true, data: items }
+  })
+
+  ipcMain.handle('storage:exists', async (_, collection, id) => {
+    const exists = await fileStorage.exists(collection, id)
+    return { success: true, data: exists }
+  })
+
+  // Chat Handlers
+  ipcMain.handle('chat:send-stream', async (event, message, agentId, contextGraph, modelConfig, conversationId) => {
+    try {
+      console.log('[IPC chat:send-stream] Starting stream:', {
+        message: message.substring(0, 50) + '...',
+        agentId,
+        modelConfig,
+        conversationId
+      });
+
+      const generator = enhancedChatOrchestrator.processMessageStream(
+        message,
+        agentId,
+        contextGraph,
+        modelConfig,
+        conversationId
+      );
+
+      let updateCount = 0;
+      for await (const update of generator) {
+        updateCount++;
+        event.sender.send('chat:stream-update', update);
+      }
+
+      console.log(`[IPC chat:send-stream] Stream completed. Total updates: ${updateCount}`);
       return { success: true };
     } catch (error: any) {
+      console.error('[IPC chat:send-stream] Stream error:', error);
       return { success: false, error: error.message };
     }
   });
 
-  ipcMain.handle('ai:generateEmbedding', async (_event, text: string) => {
-    try {
-      const result = await aiModelService.generateEmbedding(text);
-      return { success: true, data: result };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('ai:generateEmbeddingsBatch', async (_event, texts: string[]) => {
-    try {
-      const results = await aiModelService.generateEmbeddingsBatch(texts);
-      return { success: true, data: results };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('ai:generateText', async (_event, prompt: string, options?: any) => {
-    try {
-      const result = await aiModelService.generateText(prompt, options);
-      return { success: true, data: result };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('ai:summarizeText', async (_event, text: string, options?: any) => {
-    try {
-      const result = await aiModelService.summarizeText(text, options);
-      return { success: true, data: result };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('ai:analyzeDocument', async (_event, content: string) => {
-    try {
-      const result = await aiModelService.analyzeDocument(content);
-      return { success: true, data: result };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('ai:extractKeywords', async (_event, text: string, candidates: string[], topK?: number) => {
-    try {
-      const result = await aiModelService.extractKeywords(text, candidates, topK);
-      return { success: true, data: result };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  // Vector Store handlers
-  ipcMain.handle('vector:addDocuments', async (_event, knowledgeBaseId: string, documents: any[]) => {
-    try {
-      await vectorStoreService.addDocuments(knowledgeBaseId, documents);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('vector:addDocumentChunked', async (_event, knowledgeBaseId: string, documentId: string, text: string, metadata?: any) => {
-    try {
-      await vectorStoreService.addDocumentChunked(knowledgeBaseId, documentId, text, metadata);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('vector:search', async (_event, knowledgeBaseId: string, query: string, options?: any) => {
-    try {
-      const results = await vectorStoreService.search(knowledgeBaseId, query, options);
-      return { success: true, data: results };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('vector:deleteDocuments', async (_event, knowledgeBaseId: string, documentIds: string[]) => {
-    try {
-      await vectorStoreService.deleteDocuments(knowledgeBaseId, documentIds);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('vector:deleteKnowledgeBase', async (_event, knowledgeBaseId: string) => {
-    try {
-      await vectorStoreService.deleteKnowledgeBase(knowledgeBaseId);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('vector:getStats', async (_event, knowledgeBaseId: string) => {
-    try {
-      const stats = await vectorStoreService.getStats(knowledgeBaseId);
-      return { success: true, data: stats };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('vector:findSimilar', async (_event, knowledgeBaseId: string, documentId: string, limit?: number) => {
-    try {
-      const results = await vectorStoreService.findSimilarDocuments(knowledgeBaseId, documentId, limit);
-      return { success: true, data: results };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  // WASM VM handlers
-  ipcMain.handle('wasm:loadModule', async (_, moduleId: string, source: any, options: any) => {
-    try {
-      await wasmVM.loadModule(moduleId, source, options);
-      return { success: true };
-    } catch (error: any) {
-      console.error('Failed to load WASM module:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('wasm:execute', async (_, moduleId: string, functionName: string, input: any, options: any) => {
-    try {
-      const result = await wasmVM.execute(moduleId, functionName, input, options);
-      return { success: true, data: result };
-    } catch (error: any) {
-      console.error('Failed to execute WASM function:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('wasm:unloadModule', async (_, moduleId: string) => {
-    try {
-      await wasmVM.unloadModule(moduleId);
-      return { success: true };
-    } catch (error: any) {
-      console.error('Failed to unload WASM module:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('wasm:listModules', async () => {
-    try {
-      const modules = wasmVM.listModules();
-      return { success: true, data: modules };
-    } catch (error: any) {
-      console.error('Failed to list WASM modules:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('wasm:getCapabilities', async () => {
-    try {
-      const capabilities = wasmVM.getCapabilities();
-      return { success: true, data: capabilities };
-    } catch (error: any) {
-      console.error('Failed to get WASM capabilities:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  // Storage handlers
-  ipcMain.handle('storage:read', async (_, collection: string, id: string) => {
-    try {
-      const data = await fileStorage.readFile(collection, id);
-      return { success: true, data };
-    } catch (error: any) {
-      console.error('Failed to read from storage:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('storage:write', async (_, collection: string, id: string, data: any) => {
-    try {
-      await fileStorage.writeFile(collection, id, data);
-      return { success: true };
-    } catch (error: any) {
-      console.error('Failed to write to storage:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('storage:delete', async (_, collection: string, id: string) => {
-    try {
-      await fileStorage.deleteFile(collection, id);
-      return { success: true };
-    } catch (error: any) {
-      console.error('Failed to delete from storage:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('storage:list', async (_, collection: string) => {
-    try {
-      const items = await fileStorage.listFiles(collection);
-      return { success: true, data: items };
-    } catch (error: any) {
-      console.error('Failed to list storage items:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('storage:exists', async (_, collection: string, id: string) => {
-    try {
-      const exists = await fileStorage.exists(collection, id);
-      return { success: true, data: exists };
-    } catch (error: any) {
-      console.error('Failed to check storage existence:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('storage:stats', async () => {
-    try {
-      const stats = await fileStorage.getStats();
-      return { success: true, data: stats };
-    } catch (error: any) {
-      console.error('Failed to get storage stats:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('storage:migrate', async (_, localStorageData: Record<string, string>) => {
-    try {
-      await fileStorage.migrateFromLocalStorage(localStorageData);
-      return { success: true };
-    } catch (error: any) {
-      console.error('Failed to migrate localStorage:', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('document:index-files', async (_event, filePaths: string[]) => {
-    try {
-      const result = await documentIndexer.indexFiles(filePaths);
-      return { success: true, data: result };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
+  // Document Handlers
   ipcMain.handle('document:get-all', async () => {
+    const { lanceDBManager } = await import('./storage/lancedb-manager')
+    const docs = await lanceDBManager.getAllDocuments()
+    return { success: true, data: docs }
+  })
+
+  // AI Tools Handlers
+  ipcMain.handle('tools:list', async () => {
     try {
-      // This is a placeholder. In a real app, you'd fetch this from the vector store or a metadata db.
-      // For now, we'll return an empty list or mock data if needed, 
-      // but the KnowledgeBaseManager expects a list of chunks or documents.
-      // Let's try to fetch from LanceDB if possible, or just return success: true with empty data for now
-      // to avoid errors if the method is called.
-      // Actually, let's implement a basic retrieval from LanceDB if we can.
-      // But for now, let's just return success to prevent crashes.
-      return { success: true, data: [] };
+      // Return serializable tool definitions (exclude execute function)
+      const tools = allTools.map(t => ({ name: t.name, description: t.description, parameters: t.parameters }));
+      return { success: true, data: tools };
     } catch (error: any) {
       return { success: false, error: error.message };
     }
   });
 
-  console.log('IPC handlers registered successfully');
+  ipcMain.handle('tools:execute', async (_, toolName, args) => {
+    try {
+      const result = await executeTool(toolName, args);
+      return { success: true, data: result };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
 }
 
-/**
- * Cleanup IPC handlers
- */
-export function cleanupIPCHandlers(): void {
-  // Remove all IPC handlers
-  // File system
-  ipcMain.removeHandler('file:openDialog');
-  ipcMain.removeHandler('file:openFolderDialog');
-  ipcMain.removeHandler('file:readContent');
-  ipcMain.removeHandler('file:readBase64');
-  ipcMain.removeHandler('file:getInfo');
-  ipcMain.removeHandler('file:getDirectoryFiles');
-  ipcMain.removeHandler('file:processUploads');
-
-  // AI
-  ipcMain.removeHandler('ai:initialize');
-  ipcMain.removeHandler('ai:generateEmbedding');
-  ipcMain.removeHandler('ai:generateEmbeddingsBatch');
-  ipcMain.removeHandler('ai:generateText');
-  ipcMain.removeHandler('ai:summarizeText');
-  ipcMain.removeHandler('ai:analyzeDocument');
-  ipcMain.removeHandler('ai:extractKeywords');
-
-  // Happen
-  ipcMain.removeHandler('happen:list-agents');
-  ipcMain.removeHandler('happen:send-task');
-
-  // Vector store
-  ipcMain.removeHandler('vector:addDocuments');
-  ipcMain.removeHandler('vector:addDocumentChunked');
-  ipcMain.removeHandler('vector:search');
-  ipcMain.removeHandler('vector:deleteDocuments');
-  ipcMain.removeHandler('vector:deleteKnowledgeBase');
-  ipcMain.removeHandler('vector:getStats');
-  ipcMain.removeHandler('vector:findSimilar');
+export function cleanupIPCHandlers() {
+  ipcMain.removeHandler('file:openDialog')
+  ipcMain.removeHandler('file:openFolderDialog')
+  ipcMain.removeHandler('file:getCwd')
+  ipcMain.removeHandler('file:readContent')
+  ipcMain.removeHandler('file:readBase64')
+  ipcMain.removeHandler('file:getInfo')
+  ipcMain.removeHandler('file:getDirectoryFiles')
+  ipcMain.removeHandler('file:search')
+  ipcMain.removeHandler('memory:add')
+  ipcMain.removeHandler('memory:search')
+  ipcMain.removeHandler('memory:stats')
+  // ... cleanup others as needed
+  ipcMain.removeHandler('tools:list')
+  ipcMain.removeHandler('tools:execute')
 }

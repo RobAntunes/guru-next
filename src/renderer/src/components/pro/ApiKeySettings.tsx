@@ -17,7 +17,7 @@ declare global {
 }
 
 export function ApiKeySettings() {
-  const [providers, setProviders] = useState<Array<{ name: string; models: string[] }>>([]);
+  const [providers, setProviders] = useState<Array<{ id: string; name: string; models: string[]; isConfigured: boolean }>>([]);
   const [selectedProvider, setSelectedProvider] = useState('anthropic');
   const [apiKey, setApiKey] = useState('');
   const [hasKey, setHasKey] = useState(false);
@@ -35,10 +35,15 @@ export function ApiKeySettings() {
     const result = await window.api.aiProvider.list();
     if (result.success) {
       setProviders(result.data);
+      // If no provider selected and we have providers, select the first one
+      if (!selectedProvider && result.data.length > 0) {
+        setSelectedProvider(result.data[0].id);
+      }
     }
   };
 
   const checkApiKey = async () => {
+    if (!selectedProvider) return;
     const result = await window.api.aiProvider.checkKey(selectedProvider);
     if (result.success) {
       setHasKey(result.data);
@@ -92,8 +97,8 @@ export function ApiKeySettings() {
             </SelectTrigger>
             <SelectContent>
               {providers.map(p => (
-                <SelectItem key={p.name} value={p.name}>
-                  {p.name.charAt(0).toUpperCase() + p.name.slice(1)}
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
                 </SelectItem>
               ))}
             </SelectContent>

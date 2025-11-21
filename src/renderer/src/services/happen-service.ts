@@ -1,19 +1,20 @@
+import { ShadowAction } from './happen-service'; // Types are defined here
 
-import { AgentState, ShadowAction } from './happen-service'; // Self-referencing types? Best to move types to a shared file, but for now we define here or reuse.
-
-// Redeclare locally if needed or assume they are exported from somewhere.
-// Actually, I'll just use the window.api types implicitly.
-
-export interface ShadowAction {
+export interface AgentState {
     id: string;
-    agentId: string;
-    type: 'fs:write' | 'fs:delete' | 'terminal:exec';
-    summary: string;
-    payload: any;
-    timestamp: number;
-    status: 'pending' | 'approved' | 'rejected' | 'executed' | 'failed';
-    metadata?: any;
+    name: string;
+    role: string;
+    status: 'idle' | 'active' | 'paused' | 'error' | 'waiting_approval';
+    currentTask?: string;
+    tools: string[];
+    waitingFor?: string;
+    budget?: {
+        used: number;
+        limit: number;
+    };
 }
+
+export type { ShadowAction };
 
 export const happenService = {
   /**
@@ -45,11 +46,13 @@ export const happenService = {
   },
 
   /**
-   * Approve a shadow action
+   * Approve a shadow action.
+   * @param actionId The ID of the action to approve.
+   * @param modifiedContent (Optional) If the user edited the content in the Correction Deck, pass it here.
    */
-  async approveShadowAction(actionId: string): Promise<boolean> {
+  async approveShadowAction(actionId: string, modifiedContent?: string): Promise<boolean> {
       if (!window.api?.happen?.approveShadowAction) return false;
-      const result = await window.api.happen.approveShadowAction(actionId);
+      const result = await window.api.happen.approveShadowAction(actionId, modifiedContent);
       return result.success;
   },
 
@@ -79,5 +82,16 @@ export const happenService = {
           return window.api.happen.onShadowUpdate(callback);
       }
       return () => {};
+  },
+
+  /**
+   * Read file content for the diff view.
+   */
+  async readFile(path: string): Promise<string> {
+      if (window.api?.fs?.readFile) {
+          return await window.api.fs.readFile(path);
+      }
+      console.warn("window.api.fs.readFile not available");
+      return ""; 
   }
 };

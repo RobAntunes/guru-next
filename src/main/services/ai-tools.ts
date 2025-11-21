@@ -11,11 +11,8 @@ import { writeFile, mkdir, unlink, rename, readdir, stat } from 'fs/promises';
 import { dirname, join, extname, basename } from 'path';
 import { existsSync } from 'fs';
 
-// Dynamic import for happenManager to avoid circular dependencies if any
-// typically we can import directly, but since tools are used by orchestrator which is used by happen... better safe.
-// actually, orchestrator uses tools, happen uses agent-node, agent-node uses ai-manager.
-// tools -> happen-manager -> agent-node -> ai-manager -> (maybe) tools
-// This loop exists. We will use dynamic imports inside the execute functions.
+// Dynamic import for happenManager to avoid circular dependencies
+// tools -> happen-manager -> agent-node -> ai-manager -> tools
 
 export interface ToolDefinition {
   name: string;
@@ -530,16 +527,16 @@ export const agentTools: ToolDefinition[] = [
       required: ['agentId', 'task']
     },
     execute: async (args) => {
-       // Import happenManager dynamically
-       const { happenManager } = await import('./happen/happen-manager');
-       try {
-         const result = await happenManager.dispatchTask(args.agentId, args.task, {
-             source: 'main-assistant'
-         });
-         return { success: true, result, message: `Task dispatched to ${args.agentId}` };
-       } catch(e: any) { 
-           return { success: false, error: e.message }; 
-       }
+      // Import happenManager dynamically
+      const { happenManager } = await import('./happen/happen-manager');
+      try {
+        const result = await happenManager.dispatchTask(args.agentId, args.task, {
+          source: 'main-assistant'
+        });
+        return { success: true, result, message: `Task dispatched to ${args.agentId}` };
+      } catch (e: any) {
+        return { success: false, error: e.message };
+      }
     }
   },
   {
@@ -551,8 +548,8 @@ export const agentTools: ToolDefinition[] = [
       required: []
     },
     execute: async () => {
-       const { happenManager } = await import('./happen/happen-manager');
-       return { success: true, agents: happenManager.getAgents() };
+      const { happenManager } = await import('./happen/happen-manager');
+      return { success: true, agents: happenManager.getAgents() };
     }
   }
 ];
@@ -563,7 +560,7 @@ export const agentTools: ToolDefinition[] = [
 export const fileOperationTools: ToolDefinition[] = [
   {
     name: 'read_file',
-    description: 'Read the contents of a file from the filesystem',
+    description: 'Read the contents of a file from the filesystem. Code files are returned as base64 to avoid escape issues.',
     parameters: {
       type: 'object',
       properties: {
@@ -588,13 +585,18 @@ export const fileOperationTools: ToolDefinition[] = [
         const content = await readFileContent(filePath);
         const fileInfo = await getFileInfo(filePath);
 
+        const ext = fileInfo.extension.toLowerCase();
+        const isCodeFile = ['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'cpp', 'c', 'go', 'rs', 'rb'].includes(ext);
+
         return {
           success: true,
-          content,
+          content: isCodeFile ? undefined : content,
+          contentBase64: isCodeFile ? Buffer.from(content).toString('base64') : undefined,
           filePath,
           fileName: fileInfo.name,
           size: fileInfo.size,
-          extension: fileInfo.extension
+          extension: fileInfo.extension,
+          isBase64: isCodeFile
         };
       } catch (error: any) {
         return {
@@ -607,7 +609,7 @@ export const fileOperationTools: ToolDefinition[] = [
 
   {
     name: 'write_file',
-    description: 'Write content to a file (creates new file or overwrites existing)',
+    description: 'Write content to a file. For code files, use contentBase64 to avoid escape issues.',
     parameters: {
       type: 'object',
       properties: {
@@ -617,19 +619,31 @@ export const fileOperationTools: ToolDefinition[] = [
         },
         content: {
           type: 'string',
-          description: 'Content to write to the file'
+          description: 'Content for text/markdown files (use actual newlines)'
+        },
+        contentBase64: {
+          type: 'string',
+          description: 'Base64-encoded content for code files (avoids JSON escaping issues). Use this for .js, .ts, .tsx, .jsx, .py, etc.'
         },
         createDirectories: {
           type: 'boolean',
           description: 'Create parent directories if they don\'t exist (default: true)'
         }
       },
-      required: ['filePath', 'content']
+      required: ['filePath']
     },
     execute: async (args) => {
-      const { filePath, content, createDirectories = true } = args;
+      const { filePath, content, contentBase64, createDirectories = true } = args;
 
       try {
+        // Must provide either content or contentBase64
+        if (!content && !contentBase64) {
+          return {
+            success: false,
+            error: 'Must provide either content or contentBase64'
+          };
+        }
+
         // Safety check: don't write to system directories
         const dangerousPaths = ['/bin', '/sbin', '/usr', '/etc', '/System', '/Windows', '/Program Files'];
         if (dangerousPaths.some(dp => filePath.startsWith(dp))) {
@@ -639,19 +653,23 @@ export const fileOperationTools: ToolDefinition[] = [
           };
         }
 
+        // Decode base64 if provided, otherwise use content directly
+        const finalContent = contentBase64
+          ? Buffer.from(contentBase64, 'base64').toString('utf-8')
+          : content;
+
         // Create parent directories if needed
         const dir = dirname(filePath);
         if (createDirectories && !existsSync(dir)) {
           await mkdir(dir, { recursive: true });
         }
 
-        await writeFile(filePath, content, 'utf-8');
+        await writeFile(filePath, finalContent, 'utf-8');
 
         // Index the file in knowledge base if it's code
         const ext = extname(filePath).slice(1);
         const codeExts = ['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'cpp', 'c', 'go', 'rs', 'rb'];
         if (codeExts.includes(ext)) {
-          // Fire and forget - don't wait for indexing
           documentIndexer.indexFile(filePath).catch(console.error);
         }
 
@@ -659,7 +677,7 @@ export const fileOperationTools: ToolDefinition[] = [
           success: true,
           filePath,
           message: `File written successfully`,
-          size: content.length
+          size: finalContent.length
         };
       } catch (error: any) {
         return {
@@ -965,6 +983,110 @@ export const fileOperationTools: ToolDefinition[] = [
 ];
 
 /**
+ * Web Tools
+ */
+export const webTools: ToolDefinition[] = [
+  {
+    name: 'web_search',
+    description: 'Search the web for information using a search engine',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'The search query'
+        }
+      },
+      required: ['query']
+    },
+    execute: async (args) => {
+      const { query } = args;
+      try {
+        // using duckduckgo html interface for privacy and simplicity
+        const response = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
+        });
+        const html = await response.text();
+
+        // Simple regex parsing for DDG HTML
+        // Look for result__a
+        const results: any[] = [];
+        const resultRegex = /<div class="result__body">[\s\S]*?<a class="result__a" href="([^"]+)">([\s\S]*?)<\/a>[\s\S]*?<a class="result__snippet" href="[^"]+">([\s\S]*?)<\/a>/g;
+
+        let match;
+        while ((match = resultRegex.exec(html)) !== null) {
+          // decode html entities if possible, or just return raw
+          results.push({
+            url: match[1],
+            title: match[2].replace(/<[^>]+>/g, '').trim(),
+            snippet: match[3].replace(/<[^>]+>/g, '').trim()
+          });
+          if (results.length >= 5) break;
+        }
+
+        if (results.length === 0) {
+          // Fallback or different structure check? 
+          // Maybe just return the raw HTML preview or a message
+          return { success: true, results: [], message: "No results parsed. The structure might have changed." };
+        }
+
+        return {
+          success: true,
+          results
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    }
+  },
+  {
+    name: 'visit_page',
+    description: 'Visit a web page and extract its text content',
+    parameters: {
+      type: 'object',
+      properties: {
+        url: {
+          type: 'string',
+          description: 'The URL to visit'
+        }
+      },
+      required: ['url']
+    },
+    execute: async (args) => {
+      const { url } = args;
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
+        });
+        const html = await response.text();
+
+        // Basic stripping
+        const text = html
+          .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
+          .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, "")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .substring(0, 8000); // Limit size
+
+        return {
+          success: true,
+          url,
+          title: (html.match(/<title>(.*?)<\/title>/) || [])[1] || '',
+          content: text
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    }
+  }
+];
+
+/**
  * Get all tools as a single array
  */
 export const allTools: ToolDefinition[] = [
@@ -972,7 +1094,8 @@ export const allTools: ToolDefinition[] = [
   ...memoryTools,
   ...stateGraphTools,
   ...agentTools,
-  ...fileOperationTools
+  ...fileOperationTools,
+  ...webTools
 ];
 
 /**
@@ -1001,13 +1124,15 @@ export function getToolsForAnthropic() {
 }
 
 export function getToolsForGemini() {
-  return {
-    function_declarations: allTools.map(tool => ({
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters
-    }))
-  };
+  return [
+    {
+      functionDeclarations: allTools.map(tool => ({
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters
+      }))
+    }
+  ];
 }
 
 /**

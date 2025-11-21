@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -10,7 +10,7 @@ interface MarkdownRendererProps {
   className?: string;
 }
 
-export const MarkdownRenderer = ({ content, className }: MarkdownRendererProps) => {
+export const MarkdownRenderer = memo(({ content, className }: MarkdownRendererProps) => {
   return (
     <div className={cn('prose prose-sm max-w-none dark:prose-invert', className)}>
       <ReactMarkdown
@@ -35,7 +35,7 @@ export const MarkdownRenderer = ({ content, className }: MarkdownRendererProps) 
               }}
               {...props}
             >
-              {String(children).replace(/\n$/, '')}
+              {String(children).replace(/$/, '')}
             </SyntaxHighlighter>
           ) : (
             <code
@@ -66,24 +66,24 @@ export const MarkdownRenderer = ({ content, className }: MarkdownRendererProps) 
 
         // Custom paragraph with proper spacing
         p: ({ children }) => (
-          <p className="text-sm leading-relaxed mb-3 last:mb-0">
+          <p className="text-sm leading-relaxed mb-3 last:mb-0 [&:not(:first-child)]:mt-3">
             {children}
           </p>
         ),
 
         // Custom list components
         ul: ({ children }) => (
-          <ul className="list-disc list-inside space-y-1 my-2 text-sm">
+          <ul className="list-disc list-outside ml-4 space-y-1 my-2 text-sm">
             {children}
           </ul>
         ),
         ol: ({ children }) => (
-          <ol className="list-decimal list-inside space-y-1 my-2 text-sm">
+          <ol className="list-decimal list-outside ml-4 space-y-1 my-2 text-sm">
             {children}
           </ol>
         ),
         li: ({ children }) => (
-          <li className="text-sm leading-relaxed">
+          <li className="text-sm leading-relaxed pl-1 [&>p]:inline [&>p]:m-0">
             {children}
           </li>
         ),
@@ -165,4 +165,6 @@ export const MarkdownRenderer = ({ content, className }: MarkdownRendererProps) 
       </ReactMarkdown>
     </div>
   );
-};
+});
+
+MarkdownRenderer.displayName = 'MarkdownRenderer';

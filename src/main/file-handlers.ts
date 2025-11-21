@@ -4,7 +4,7 @@
  */
 
 import { readFile, stat, readdir } from 'fs/promises'
-import { join, extname, basename } from 'path'
+import { join, extname, basename, relative } from 'path'
 import { readFileSync } from 'fs'
 
 // Optional electron imports for dialog functions
@@ -72,7 +72,7 @@ function shouldIgnore(path: string, ignorePatterns: string[]): boolean {
     }
     
     // Directory match
-    const pathParts = path.split('/')
+    const pathParts = path.split(/[/\\]/)
     return pathParts.some(part => part === pattern)
   })
 }
@@ -85,7 +85,7 @@ async function loadGitIgnore(dirPath: string): Promise<string[]> {
     const gitignorePath = join(dirPath, '.gitignore')
     const content = await readFile(gitignorePath, 'utf-8')
     return content
-      .split('\n')
+      .split('')
       .map(line => line.trim())
       .filter(line => line && !line.startsWith('#'))
   } catch (error) {
@@ -221,6 +221,67 @@ export async function getDirectoryFiles(dirPath: string, recursive: boolean = fa
   }
 
   return files
+}
+
+/**
+ * Search files in directory by name
+ */
+export async function searchFiles(
+    rootDir: string, 
+    query: string, 
+    limit: number = 20,
+    ignorePatterns: string[] = []
+): Promise<FileInfo[]> {
+    const results: FileInfo[] = [];
+    const queue: string[] = [rootDir];
+    const lowerQuery = query.toLowerCase();
+    
+    const gitignorePatterns = await loadGitIgnore(rootDir);
+    const allIgnorePatterns = [...ignorePatterns, ...gitignorePatterns];
+
+    let count = 0;
+    const maxScanned = 5000; // Safety break
+    let scanned = 0;
+
+    while (queue.length > 0 && count < limit && scanned < maxScanned) {
+        const currentDir = queue.shift()!;
+        
+        try {
+            const entries = await readdir(currentDir, { withFileTypes: true });
+            
+            for (const entry of entries) {
+                scanned++;
+                const fullPath = join(currentDir, entry.name);
+                
+                if (shouldIgnore(fullPath, allIgnorePatterns)) {
+                    continue;
+                }
+
+                if (entry.isDirectory()) {
+                    queue.push(fullPath);
+                } else {
+                    const name = entry.name;
+                    if (query === '' || name.toLowerCase().includes(lowerQuery)) {
+                        const stats = await stat(fullPath);
+                        results.push({
+                            path: fullPath,
+                            name: name,
+                            size: stats.size,
+                            extension: extname(name),
+                            lastModified: stats.mtime,
+                            isDirectory: false
+                        });
+                        count++;
+                        if (count >= limit) break;
+                    }
+                }
+            }
+        } catch (e) {
+            // Ignore access errors
+        }
+    }
+
+    return results;
 }
 
 /**

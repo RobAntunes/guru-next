@@ -7,11 +7,14 @@ contextBridge.exposeInMainWorld('api', {
   file: {
     openDialog: (options?: any) => ipcRenderer.invoke('file:openDialog', options),
     openFolderDialog: () => ipcRenderer.invoke('file:openFolderDialog'),
+    getCwd: () => ipcRenderer.invoke('file:getCwd'),
     readContent: (filePath: string) => ipcRenderer.invoke('file:readContent', filePath),
     readBase64: (filePath: string) => ipcRenderer.invoke('file:readBase64', filePath),
     getInfo: (filePath: string) => ipcRenderer.invoke('file:getInfo', filePath),
     getDirectoryFiles: (dirPath: string, recursive?: boolean) =>
       ipcRenderer.invoke('file:getDirectoryFiles', dirPath, recursive),
+    search: (rootDir: string, query: string, limit?: number) =>
+      ipcRenderer.invoke('file:search', rootDir, query, limit),
     processUploads: (filePaths: string[]) => ipcRenderer.invoke('file:processUploads', filePaths)
   },
 
@@ -24,9 +27,7 @@ contextBridge.exposeInMainWorld('api', {
     summarizeText: (text: string, options?: any) => ipcRenderer.invoke('ai:summarizeText', text, options),
     analyzeDocument: (content: string) => ipcRenderer.invoke('ai:analyzeDocument', content),
     extractKeywords: (text: string, candidates: string[], topK?: number) =>
-      ipcRenderer.invoke('ai:extractKeywords', text, candidates, topK),
-    setKey: (providerId: string, key: string) => ipcRenderer.invoke('ai:set-key', providerId, key),
-    getProviders: () => ipcRenderer.invoke('ai:get-providers')
+      ipcRenderer.invoke('ai:extractKeywords', text, candidates, topK)
   },
 
   // Vector store operations
@@ -77,7 +78,9 @@ contextBridge.exposeInMainWorld('api', {
     delete: (documentId: string) => ipcRenderer.invoke('document:delete', documentId),
     selectFile: () => ipcRenderer.invoke('document:select-file'),
     indexFiles: (filePaths: string[]) => ipcRenderer.invoke('document:index-files', filePaths),
-    indexFile: (filePath: string) => ipcRenderer.invoke('document:index-file', filePath)
+    indexFile: (filePath: string) => ipcRenderer.invoke('document:index-file', filePath),
+    indexWeb: (options: { url: string, depth?: number, maxPages?: number }) => ipcRenderer.invoke('document:index-web', options),
+    indexUrl: (url: string) => ipcRenderer.invoke('document:index-url', url) // Legacy
   },
 
   // WASM VM API
@@ -169,7 +172,7 @@ contextBridge.exposeInMainWorld('api', {
       
     // Shadow Mode
     getPendingShadowActions: () => ipcRenderer.invoke('happen:shadow:get-pending'),
-    approveShadowAction: (actionId: string) => ipcRenderer.invoke('happen:shadow:approve', { actionId }),
+    approveShadowAction: (actionId: string, modifiedContent?: string) => ipcRenderer.invoke('happen:shadow:approve', { actionId, modifiedContent }),
     rejectShadowAction: (actionId: string) => ipcRenderer.invoke('happen:shadow:reject', { actionId }),
     setShadowMode: (enabled: boolean) => ipcRenderer.invoke('happen:shadow:set-mode', { enabled }),
     onShadowUpdate: (callback: (actions: any[]) => void) => {
@@ -189,6 +192,11 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.on('task:stream-complete', () => callback()),
     onStreamError: (callback: (error: string) => void) =>
       ipcRenderer.on('task:stream-error', (_event, error) => callback(error))
+  },
+  
+  // FS (Exposed for diff reading if not present in 'file')
+  fs: {
+      readFile: (path: string) => ipcRenderer.invoke('file:readContent', path)
   },
 
   // Generic IPC methods
