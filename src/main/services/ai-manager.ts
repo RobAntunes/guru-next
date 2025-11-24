@@ -28,9 +28,7 @@ export class OpenAIProvider implements AIProvider {
     private client: OpenAI | null = null;
 
     models: AIModel[] = [
-        { id: 'gpt-5.1', name: 'GPT-5.1', providerId: 'openai', description: 'Latest flagship model, excellent for reasoning and coding.', contextWindow: 128000 },
-        { id: 'gpt-4o', name: 'GPT-4o', providerId: 'openai', description: 'Versatile, high-intelligence model.', contextWindow: 128000 },
-        { id: 'o3-mini', name: 'o3-mini', providerId: 'openai', description: 'Cost-effective reasoning model.', contextWindow: 128000 }
+        { id: 'gpt-5.1', name: 'GPT-5.1', providerId: 'openai', description: 'Latest flagship model, excellent for reasoning and coding.', contextWindow: 128000 }
     ];
 
     configure(apiKey: string) {
@@ -455,6 +453,16 @@ class AIProviderManager {
 
     getApiKey(providerId: string): string | undefined {
         return this.apiKeys[providerId];
+    }
+
+    getProviderForModel(modelId: string): string {
+        for (const provider of this.providers.values()) {
+            if (provider.models.find(m => m.id === modelId)) {
+                return provider.id;
+            }
+        }
+        // Default to openai if not found (legacy behavior)
+        return 'openai';
     }
 
     async generateText(prompt: string, providerId: string, modelId: string, options?: any): Promise<string> {

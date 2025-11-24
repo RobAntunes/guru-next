@@ -559,20 +559,21 @@ export const agentTools: ToolDefinition[] = [
  */
 export const fileOperationTools: ToolDefinition[] = [
   {
-    name: 'read_file',
+    name: 'fs:read',
     description: 'Read the contents of a file from the filesystem. Code files are returned as base64 to avoid escape issues.',
     parameters: {
       type: 'object',
       properties: {
-        filePath: {
+        path: {
           type: 'string',
           description: 'Absolute path to the file to read'
         }
       },
-      required: ['filePath']
+      required: ['path']
     },
     execute: async (args) => {
-      const { filePath } = args;
+      const { path } = args;
+      const filePath = path; // Alias for internal use
 
       try {
         if (!existsSync(filePath)) {
@@ -608,12 +609,12 @@ export const fileOperationTools: ToolDefinition[] = [
   },
 
   {
-    name: 'write_file',
+    name: 'fs:write',
     description: 'Write content to a file. For code files, use contentBase64 to avoid escape issues.',
     parameters: {
       type: 'object',
       properties: {
-        filePath: {
+        path: {
           type: 'string',
           description: 'Absolute path where to write the file'
         },
@@ -630,10 +631,11 @@ export const fileOperationTools: ToolDefinition[] = [
           description: 'Create parent directories if they don\'t exist (default: true)'
         }
       },
-      required: ['filePath']
+      required: ['path']
     },
     execute: async (args) => {
-      const { filePath, content, contentBase64, createDirectories = true } = args;
+      const { path, content, contentBase64, createDirectories = true } = args;
+      const filePath = path; // Alias for internal use
 
       try {
         // Must provide either content or contentBase64
@@ -689,12 +691,12 @@ export const fileOperationTools: ToolDefinition[] = [
   },
 
   {
-    name: 'list_directory',
+    name: 'fs:list',
     description: 'List files and directories in a given path',
     parameters: {
       type: 'object',
       properties: {
-        dirPath: {
+        path: {
           type: 'string',
           description: 'Path to the directory to list'
         },
@@ -707,10 +709,11 @@ export const fileOperationTools: ToolDefinition[] = [
           description: 'Filter by file extension or pattern (e.g., "*.ts")'
         }
       },
-      required: ['dirPath']
+      required: ['path']
     },
     execute: async (args) => {
-      const { dirPath, recursive = false, pattern } = args;
+      const { path, recursive = false, pattern } = args;
+      const dirPath = path; // Alias for internal use
 
       try {
         if (!existsSync(dirPath)) {
@@ -987,7 +990,7 @@ export const fileOperationTools: ToolDefinition[] = [
  */
 export const webTools: ToolDefinition[] = [
   {
-    name: 'web_search',
+    name: 'browser:search',
     description: 'Search the web for information using a search engine',
     parameters: {
       type: 'object',
@@ -1087,6 +1090,146 @@ export const webTools: ToolDefinition[] = [
 ];
 
 /**
+ * Agent Management Tools
+ */
+export const agentManagementTools: ToolDefinition[] = [
+  {
+    name: 'spawn_ephemeral_agent',
+    description: 'Spawn a new ephemeral agent with a specific role and capabilities',
+    parameters: {
+      type: 'object',
+      properties: {
+        role_name: {
+          type: 'string',
+          description: 'The role name of the agent (e.g., "TwitterCopywriter", "DataAnalyst")'
+        },
+        system_prompt: {
+          type: 'string',
+          description: 'The system prompt defining the agent\'s behavior and persona'
+        },
+        capabilities: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'List of capabilities/tools the agent can use (e.g., ["fs:read", "llm:generate"])'
+        },
+        initial_task: {
+          type: 'string',
+          description: 'The initial task or prompt to start the agent immediately'
+        }
+      },
+      required: ['role_name', 'system_prompt', 'capabilities', 'initial_task']
+    },
+    execute: async (args) => {
+      const { role_name, system_prompt, capabilities, initial_task } = args;
+
+      try {
+        const happenManager = (await import('./happen/happen-manager')).happenManager;
+
+        const agentId = await happenManager.spawnDynamic({
+          id: `agent-${role_name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
+          role: role_name,
+          systemPrompt: system_prompt,
+          capabilities: capabilities
+        });
+
+        // Dispatch the initial task
+        const result = await happenManager.dispatchTask(agentId, initial_task, {});
+
+        return {
+          success: true,
+          agentId,
+          message: `Agent ${role_name} spawned successfully`,
+          initialTaskResult: result
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message
+        };
+      }
+    }
+  },
+  {
+    name: 'spawn_async_agent',
+    description: 'Spawn a new agent and assign a task without waiting for the result (Fire and Forget). Returns agentId immediately.',
+    parameters: {
+      type: 'object',
+      properties: {
+        role_name: {
+          type: 'string',
+          description: 'The role name of the agent'
+        },
+        system_prompt: {
+          type: 'string',
+          description: 'The system prompt'
+        },
+        capabilities: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'List of capabilities'
+        },
+        initial_task: {
+          type: 'string',
+          description: 'The initial task'
+        }
+      },
+      required: ['role_name', 'system_prompt', 'capabilities', 'initial_task']
+    },
+    execute: async (args) => {
+      const { role_name, system_prompt, capabilities, initial_task } = args;
+      try {
+        const happenManager = (await import('./happen/happen-manager')).happenManager;
+        const agentId = await happenManager.spawnDynamic({
+          id: `agent-${role_name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
+          role: role_name,
+          systemPrompt: system_prompt,
+          capabilities: capabilities
+        });
+
+        // Fire and forget
+        await happenManager.dispatchTaskAsync(agentId, initial_task, {});
+
+        return {
+          success: true,
+          agentId,
+          message: `Agent ${role_name} spawned asynchronously. Use wait_for_agents(['${agentId}']) to get results later.`
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    }
+  },
+  {
+    name: 'wait_for_agents',
+    description: 'Suspend execution until specific agents complete their tasks.',
+    parameters: {
+      type: 'object',
+      properties: {
+        agent_ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'List of agent IDs to wait for'
+        },
+        timeout_seconds: {
+          type: 'number',
+          description: 'Optional timeout in seconds'
+        }
+      },
+      required: ['agent_ids']
+    },
+    execute: async (args) => {
+      const { agent_ids } = args;
+      // This return value is a signal to the AgentNode to suspend
+      return {
+        _action: 'suspend',
+        waitingFor: agent_ids,
+        message: `Suspending execution to wait for agents: ${agent_ids.join(', ')}`
+      };
+    }
+  }
+];
+
+/**
  * Get all tools as a single array
  */
 export const allTools: ToolDefinition[] = [
@@ -1095,7 +1238,8 @@ export const allTools: ToolDefinition[] = [
   ...stateGraphTools,
   ...agentTools,
   ...fileOperationTools,
-  ...webTools
+  ...webTools,
+  ...agentManagementTools
 ];
 
 /**

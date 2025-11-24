@@ -84,6 +84,7 @@
     "eventemitter3": "^5.0.1",
     "happen-core": "^0.2.1",
     "lucide-react": "^0.553.0",
+    "nats": "^2.29.3",
     "nats-server": "^0.0.0",
     "openai": "^6.9.1",
     "pdf-parse": "^2.4.5",

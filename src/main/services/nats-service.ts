@@ -2,10 +2,13 @@ import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { app } from 'electron';
+import { connect, NatsConnection, JetStreamClient, KV } from 'nats';
 
 export class NatsService {
     private process: ChildProcess | null = null;
     private port: number = 4222;
+    private nc: NatsConnection | null = null;
+    private js: JetStreamClient | null = null;
 
     constructor(port: number = 4222) {
         this.port = port;
@@ -14,13 +17,14 @@ export class NatsService {
     public async start(): Promise<void> {
         if (this.process) {
             console.log('[NATS] Server already running');
+            await this.connect();
             return;
         }
 
         const natsPath = await this.resolveNatsBinary();
         console.log(`[NATS] Starting server from: ${natsPath}`);
 
-        return new Promise((resolve, reject) => {
+        await new Promise<void>((resolve, reject) => {
             this.process = spawn(natsPath, ['-p', this.port.toString(), '-js'], {
                 stdio: ['ignore', 'pipe', 'pipe'],
                 windowsHide: true
@@ -46,14 +50,52 @@ export class NatsService {
             this.process.on('close', (code) => {
                 console.log(`[NATS] Server exited with code ${code}`);
                 this.process = null;
+                this.nc = null;
+                this.js = null;
             });
 
             // Fallback: Resolve after 1s if "Server is ready" isn't caught (sometimes buffering hides it)
             setTimeout(() => resolve(), 1000);
         });
+
+        await this.connect();
     }
 
-    public stop(): void {
+    private async connect(): Promise<void> {
+        if (this.nc) return;
+
+        try {
+            console.log('[NATS] Connecting system client...');
+            this.nc = await connect({ servers: `localhost:${this.port}` });
+            this.js = this.nc.jetstream();
+            console.log('[NATS] System client connected');
+        } catch (error) {
+            console.error('[NATS] Failed to connect system client:', error);
+            // Don't throw, as the server might still be running fine for other clients
+        }
+    }
+
+    public async getSwarmStateBucket(): Promise<KV> {
+        if (!this.nc || !this.js) {
+            await this.connect();
+        }
+
+        if (!this.js) {
+            throw new Error('NATS JetStream not available');
+        }
+
+        // Create 'swarm_state' bucket with history for debugging
+        return await this.js.views.kv('swarm_state', { history: 5 });
+    }
+
+    public async stop(): Promise<void> {
+        if (this.nc) {
+            console.log('[NATS] Closing system client...');
+            await this.nc.close();
+            this.nc = null;
+            this.js = null;
+        }
+
         if (this.process) {
             console.log('[NATS] Stopping server...');
             this.process.kill();

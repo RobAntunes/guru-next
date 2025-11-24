@@ -9,7 +9,6 @@ import { webIndexer } from './services/web-indexer'
 import { wasmVM } from './wasm-vm'
 import { fileStorage } from './file-storage'
 import { providerManager } from './services/provider-manager'
-import { enhancedChatOrchestrator } from './services/enhanced-chat-orchestrator'
 import { happenManager } from './services/happen/happen-manager'
 import { shadowService } from './services/happen/shadow-service'
 import { allTools, executeTool } from './services/ai-tools'
@@ -315,24 +314,36 @@ export function registerIPCHandlers() {
         conversationId
       });
 
-      const generator = enhancedChatOrchestrator.processMessageStream(
-        message,
+      // Use the Happen event bus to dispatch the task to the agent
+      // This replaces the old orchestrator pattern
+      const result = await happenManager.dispatchTask(
         agentId,
-        contextGraph,
-        modelConfig,
-        conversationId
+        message,
+        {
+          contextGraph,
+          modelConfig,
+          conversationId
+        }
       );
 
-      let updateCount = 0;
-      for await (const update of generator) {
-        updateCount++;
-        event.sender.send('chat:stream-update', update);
-      }
+      // Send the result as a final update
+      event.sender.send('chat:stream-update', {
+        type: 'response',
+        data: {
+          response: result.output || result.data || '',
+          conversationId: conversationId || 'default',
+          success: result.success
+        }
+      });
 
-      console.log(`[IPC chat:send-stream] Stream completed. Total updates: ${updateCount}`);
+      console.log(`[IPC chat:send-stream] Task completed`);
       return { success: true };
     } catch (error: any) {
       console.error('[IPC chat:send-stream] Stream error:', error);
+      event.sender.send('chat:stream-update', {
+        type: 'error',
+        data: { message: error.message }
+      });
       return { success: false, error: error.message };
     }
   });

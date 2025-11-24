@@ -1,11 +1,11 @@
 import { initializeHappen, HappenNode } from 'happen-core';
 import { FileSystemNode } from './nodes/fs-node';
 import { LLMNode } from './nodes/llm-node';
-import { AgentNode, AgentState } from './nodes/agent-node';
+import { AgentNode, AgentState, AgentConfig } from './nodes/agent-node';
 import { TerminalNode } from './nodes/terminal-node';
 import { BrowserNode } from './nodes/browser-node';
 import { NetNode } from './nodes/net-node';
-import { AGENT_CONFIGS } from './nodes/agent-configs';
+import { WorkbenchNode } from './nodes/workbench-node';
 import { shadowService } from './shadow-service';
 
 export class HappenManager {
@@ -34,7 +34,7 @@ export class HappenManager {
             const { createNode } = await initializeHappen({
                 servers: ['localhost:4222']
             });
-            
+
             this.createNodeFactory = createNode;
 
             // Create a system node for dispatching tasks from the main process
@@ -51,29 +51,65 @@ export class HappenManager {
                 }
             });
 
+            // Wake Up Protocol: Listen for agent completion events
+            this.systemNode.on('system:agent-complete', async (event: any) => {
+                const { agentId, result, error } = event.payload || {};
+                console.log(`[HappenManager] Received completion from ${agentId}`);
+
+                // Find any agents waiting for this agent
+                const agents = this.getAgents(); // This gets state, but we need the Node instance to call methods
+
+                for (const [id, node] of this.nodes.entries()) {
+                    if (node instanceof AgentNode) {
+                        const state = node.getState();
+                        if (state.status === 'suspended' && state.suspendedForIds?.includes(agentId)) {
+                            console.log(`[HappenManager] Waking up parent agent: ${state.id}`);
+                            // We need to cast node to AgentNode to access the method (it is protected/private usually, but we'll make it public or accessible)
+                            // For now assuming we can call a method on it.
+                            await (node as any).handleChildCompletion({ agentId, result, error });
+                        }
+                    }
+                }
+            });
+
             // Create Service Nodes (Always available)
             this.createServiceNode(createNode, 'fs-service', FileSystemNode);
             this.createServiceNode(createNode, 'llm-service', LLMNode);
             this.createServiceNode(createNode, 'terminal-service', TerminalNode);
             this.createServiceNode(createNode, 'browser-service', BrowserNode);
             this.createServiceNode(createNode, 'net-service', NetNode);
+            this.createServiceNode(createNode, 'workbench-service', WorkbenchNode);
 
-            // NOTE: Agents are no longer created upfront. They are spawned on demand.
-            // We only create the Architect initially if we want a default entry point, 
-            // but strictly speaking, even the architect can be lazy loaded upon first user message.
-            // For better UX (showing at least one agent), we might spawn Architect, 
-            // but the requirement is "no coder agent sitting around".
-            
+            // Bootstrap: Spawn the Root Architect
+            // This is the only hardcoded agent. All others are spawned dynamically.
+            await this.spawnDynamic({
+                id: 'architect',
+                role: 'System Architect',
+                systemPrompt: `You are the Architect Agent in the Guru AI Mission Control.
+Your role is to analyze user requirements and create high-level plans.
+You act as the orchestrator. When you receive a complex task, break it down and delegate implementation to the 'coder' and verification to 'qa'.
+
+IMPORTANT:
+1. Start by listing the high-level steps.
+2. Delegate specific sub-tasks to the 'coder' agent.
+3. Once coding is complete, delegate testing to the 'qa' agent.
+4. Consolidate the results and present a final summary to the user.
+
+Use the provided tools to perform these actions. Do not simulate tool calls.
+Capabilities: System design, architecture planning, task breakdown, delegation.`,
+                capabilities: ['system-design', 'planning', 'delegation', 'spawn_ephemeral_agent']
+            });
+
             // Register Shadow Service bridge
             shadowService.onActionComplete((action, result, error) => {
                 if (this.systemNode) {
                     console.log(`[HappenManager] Notifying agent-${action.agentId} of action completion`);
-                    this.systemNode.emit(`agent:${action.agentId}:action-result`, {
+                    this.systemNode.send(`agent:${action.agentId}:action-result`, {
                         actionId: action.id,
                         status: error ? 'rejected' : 'approved',
                         result,
                         error
-                    });
+                    } as any);
                 }
             });
 
@@ -105,25 +141,34 @@ export class HappenManager {
         console.log(`[HappenManager] Created node: ${id}`);
     }
 
-    private ensureAgent(agentId: string): void {
-        const nodeId = `agent-${agentId}`;
-        if (this.nodes.has(nodeId)) {
-            return;
-        }
-
+    public async spawnDynamic(config: AgentConfig): Promise<string> {
         if (!this.createNodeFactory) {
             throw new Error('HappenManager not initialized - cannot spawn agent');
         }
 
-        const config = AGENT_CONFIGS[agentId];
-        if (!config) {
-            throw new Error(`Unknown agent type: ${agentId}`);
+        const agentId = config.id;
+        const nodeId = `agent-${agentId}`;
+
+        if (this.nodes.has(nodeId)) {
+            console.log(`[HappenManager] Agent ${agentId} already exists`);
+            return agentId;
         }
 
-        console.log(`[HappenManager] Spawning agent: ${agentId} (Lazy Load)`);
+        console.log(`[HappenManager] Spawning dynamic agent: ${agentId} (${config.role})`);
         const happenNode = this.createNodeFactory(nodeId, {});
         const agentNode = new AgentNode(happenNode, config);
         this.nodes.set(nodeId, agentNode);
+
+        // Emit system event for UI observability
+        if (this.systemNode) {
+            this.systemNode.send('system:agent-spawned', {
+                id: agentId,
+                role: config.role,
+                timestamp: Date.now()
+            } as any);
+        }
+
+        return agentId;
     }
 
     /**
@@ -135,25 +180,49 @@ export class HappenManager {
         }
 
         // Ensure the agent exists before dispatching
-        try {
-            this.ensureAgent(agentId);
-        } catch (e: any) {
-            console.error(`[HappenManager] Failed to spawn agent ${agentId}:`, e);
-            return { success: false, error: `Could not spawn agent: ${e.message}` };
+        const nodeId = `agent-${agentId}`;
+        if (!this.nodes.has(nodeId)) {
+            console.error(`[HappenManager] Agent ${agentId} not found`);
+            return { success: false, error: `Agent ${agentId} not found. Please spawn it first.` };
         }
 
         console.log(`[HappenManager] Dispatching task to agent-${agentId}`);
-        
+
         try {
-             const result = await this.systemNode.call(`agent:${agentId}:task`, {
+            // Use send().return() pattern for request-response
+            const result = await this.systemNode.send(`agent:${agentId}:task`, {
                 prompt,
                 contextData: contextData || {}
-            });
+            } as any).return();
             return result;
         } catch (error: any) {
             console.error(`[HappenManager] Failed to dispatch task:`, error);
             throw error;
         }
+    }
+
+    /**
+     * Dispatch a task asynchronously (Fire and Forget).
+     * Used by spawn_async_agent.
+     */
+    public async dispatchTaskAsync(agentId: string, prompt: string, contextData: any): Promise<void> {
+        if (!this.systemNode) {
+            throw new Error('HappenManager not initialized');
+        }
+
+        const nodeId = `agent-${agentId}`;
+        if (!this.nodes.has(nodeId)) {
+            console.error(`[HappenManager] Agent ${agentId} not found for async dispatch`);
+            return;
+        }
+
+        console.log(`[HappenManager] Async dispatch to agent-${agentId}`);
+
+        // Fire and forget - do NOT call .return()
+        this.systemNode.send(`agent:${agentId}:task`, {
+            prompt,
+            contextData: contextData || {}
+        } as any);
     }
 }
 

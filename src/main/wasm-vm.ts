@@ -4,12 +4,14 @@
  */
 
 import { createPlugin, type Plugin, type CallContext } from '@extism/extism';
+import { readFile } from 'fs/promises';
 
 export interface VMExecutionOptions {
-  timeout?: number; // milliseconds
-  memoryLimit?: number; // bytes
+  timeout?: number; // milliseconds (default: 5000)
+  memoryLimit?: number; // bytes (default: 100MB)
   allowedHosts?: string[]; // HTTP hosts that can be accessed
   config?: Record<string, string>; // Config passed to the plugin
+  hostFunctions?: Record<string, (context: CallContext, ...args: any[]) => any>; // Custom host functions
 }
 
 export interface VMExecutionResult {
@@ -27,6 +29,7 @@ export interface WasmModuleSource {
 
 class WasmVM {
   private plugins: Map<string, Plugin> = new Map();
+  private moduleStats: Map<string, { memoryUsed: number; createdAt: number }> = new Map();
 
   /**
    * Load a WASM module
@@ -98,7 +101,7 @@ class WasmVM {
       }
 
       // Set timeout
-      const timeout = options?.timeout || 30000; // 30s default
+      const timeout = options?.timeout || 5000; // 5s default (per spec)
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Execution timeout')), timeout)
       );
@@ -202,6 +205,80 @@ class WasmVM {
         'Go',
         'And many more...',
       ],
+    };
+  }
+
+  /**
+   * Get module statistics
+   */
+  getModuleStats(moduleId: string): { memoryUsed: number; createdAt: number } | null {
+    return this.moduleStats.get(moduleId) || null;
+  }
+
+  /**
+   * Create safe host functions for the Workbench
+   * These functions are exposed to WASM modules and enforce Shadow Mode
+   */
+  createSafeHostFunctions(agentId: string, shadowServiceCallback?: (action: any) => Promise<any>) {
+    return {
+      // Safe: Log to console
+      host_log: (context: CallContext) => {
+        const message = context.read(context.inputOffset())?.text() || '';
+        console.log(`[WASM Tool] ${message}`);
+        return 0; // Success
+      },
+
+      // Safe: Read file (synchronous read, staged if needed)
+      host_read_file: async (context: CallContext) => {
+        try {
+          const path = context.read(context.inputOffset())?.text() || '';
+          console.log(`[WASM] host_read_file: ${path}`);
+
+          // Read file directly (this is safe, it's read-only)
+          const content = await readFile(path, 'utf-8');
+          context.write(context.outputOffset(), content);
+          return 0; // Success
+        } catch (error: any) {
+          console.error('[WASM] host_read_file failed:', error);
+          context.write(context.outputOffset(), `Error: ${error.message}`);
+          return 1; // Error
+        }
+      },
+
+      // STAGED: Write file (intercepted by Shadow Service)
+      host_write_file: async (context: CallContext) => {
+        try {
+          const input = context.read(context.inputOffset())?.text() || '';
+          const { path, content } = JSON.parse(input);
+
+          console.log(`[WASM] host_write_file: ${path} (STAGED via Shadow Mode)`);
+
+          // Stage the action via Shadow Service if callback provided
+          if (shadowServiceCallback) {
+            const result = await shadowServiceCallback({
+              agentId,
+              type: 'fs:write',
+              summary: `Write file: ${path}`,
+              payload: { path, content }
+            });
+
+            // If staged, return special status
+            if (result.status === 'staged') {
+              context.write(context.outputOffset(), JSON.stringify({ staged: true, actionId: result.actionId }));
+              return 2; // Staged (custom code)
+            }
+          }
+
+          // If Shadow Mode is off or approved, this would execute
+          // For now, we return success (actual write would happen after approval)
+          context.write(context.outputOffset(), JSON.stringify({ success: true }));
+          return 0; // Success
+        } catch (error: any) {
+          console.error('[WASM] host_write_file failed:', error);
+          context.write(context.outputOffset(), `Error: ${error.message}`);
+          return 1; // Error
+        }
+      }
     };
   }
 }
